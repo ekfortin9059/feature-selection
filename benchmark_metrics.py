@@ -111,9 +111,11 @@ def run_metrics(seeds, N, data, T_max, p_c, p_m, ref_point,
         
         
     
-def run_FNSGA_metrics(seeds, data, population_size, generations, crossover_prob, 
-                      mutation_prob,tournament_param, exploration_param,ref_point, 
-                      extreme_1, extreme_2, seeding_prop, ones_prop, ls_param, FNSGA_function):
+def run_FNSGA_metrics(seeds, data, model, scorer, population_size, generations,
+                      crossover_prob, mutation_prob, tournament_param, exploration_param,
+                      ref_point, extreme_1, extreme_2,
+                      seeding_prop, ones_prop, ls_param, FNSGA_function):
+
     results = []
     
     for seed in seeds:
@@ -121,10 +123,15 @@ def run_FNSGA_metrics(seeds, data, population_size, generations, crossover_prob,
         for val in [False, True]:
             start = time.time()
             # version 1
-            nd_front = FNSGA_function(data, population_size, generations, crossover_prob, mutation_prob,
-                      tournament_param, exploration_param,
-                      seeding_prop, ones_prop, ls_param,
-                      seed=seed, plot=False, ls_toolbox = val)
+            nd_front, _, _ = FNSGA_function(
+                data, model, scorer,
+                population_size, generations,
+                crossover_prob, mutation_prob,
+                tournament_param, exploration_param,
+                seeding_prop, ones_prop, ls_param,
+                seed=seed, plot=False, ls_toolbox=val
+            )
+
             end = time.time() - start
             
             F = nd_front.fitness

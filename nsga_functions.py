@@ -528,7 +528,7 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
     inds = [population.population[i] for i in sort_nd]
 
     for ind in inds:
-        c_new = ind
+        c_new = ind.chromosome.copy()
         total_score = c_new @ feat_scores
         if total_score == 0:
             continue
