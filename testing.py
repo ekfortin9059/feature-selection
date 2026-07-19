@@ -15,7 +15,8 @@ import nsga_functions as nsga
 import matplotlib.pyplot as plt
 import benchmark_metrics as bm
 from ML_code import eval_model
-
+from sklearn.metrics import r2_score
+#%%
 dataset_id = 464
 population_size = 100
 archive_size = 100
@@ -46,7 +47,7 @@ feat_importance = SelectFromModel(
 # generate initial population
 pop_t = Population(population_size)
 pop_t.initialize(data.n, feat_importance, seeding_prop, ones_prop, rng)
-pop_t.evaluate(data)
+pop_t.evaluate(data, LinearRegression(), r2_score)
  
 # store initial pop in archive 
 archive = Population(population_size)

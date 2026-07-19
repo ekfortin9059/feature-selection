@@ -42,7 +42,7 @@ def compute_spread(F, extreme_1, extreme_2):
     
     return num / den
     
-def compute_pareto_extremes(data, eval_model):
+def compute_pareto_extremes(data, eval_model, model, scorer):
     '''
         Computes the two extreme solutions of the feature selection problem 
             1. Best R^2 using all features
@@ -50,7 +50,7 @@ def compute_pareto_extremes(data, eval_model):
     '''
     
     # 1. best r2 using all features
-    best_r2_all = eval_model(data, np.ones(data.n))
+    best_r2_all = eval_model(data, np.ones(data.n), model, scorer)
     extreme_1 = np.array([-best_r2_all, data.n])
     
     # 2. best single feature
@@ -58,7 +58,7 @@ def compute_pareto_extremes(data, eval_model):
     for i in range(data.n):
         mask = np.zeros(data.n)
         mask[i] = 1 
-        r2 = eval_model(data, mask)
+        r2 = eval_model(data, mask, model, scorer)
         
         if r2 > best_r2_single:
             best_r2_single = r2
@@ -111,40 +111,32 @@ def run_metrics(seeds, N, data, T_max, p_c, p_m, ref_point,
         
         
     
-def run_FNSGA_metrics(seeds, data, model, scorer, population_size, generations,
-                      crossover_prob, mutation_prob, tournament_param, exploration_param,
-                      ref_point, extreme_1, extreme_2,
-                      seeding_prop, ones_prop, ls_param, FNSGA_function):
+def run_FNSGA_metrics(seeds, data, model, scorer,
+                      ref_point, extreme_1, extreme_2, 
+                      algorithms, params):
 
     results = []
     
     for seed in seeds:
-        results.append({"seed": seed})
-        for val in [False, True]:
+        for alg in [*algorithms]:
+            results.append({"seed": seed})
             start = time.time()
-            # version 1
-            nd_front, _, _ = FNSGA_function(
-                data, model, scorer,
-                population_size, generations,
-                crossover_prob, mutation_prob,
-                tournament_param, exploration_param,
-                seeding_prop, ones_prop, ls_param,
-                seed=seed, plot=False, ls_toolbox=val
-            )
-
+            nd_front, _, _ = algorithms[alg](data, model, scorer, params[alg], seed=seed, plot=False)
+            
+    
             end = time.time() - start
             
             F = nd_front.fitness
             seed_idx = np.where(seeds==seed)[0][0]
-            results[seed_idx][f"F_v{int(val)}"] = F
-            results[seed_idx][f"HV_v{int(val)}"] = HV(ref_point = ref_point)(F)
-            results[seed_idx][f"spread_v{int(val)}"] = compute_spread(F, extreme_1, extreme_2)
-            results[seed_idx][f"spacing_v{int(val)}"] = compute_spacing(F)
-            results[seed_idx][f"time_v{int(val)}"] = end
+            results[seed_idx][f"F_{alg}"] = F
+            results[seed_idx][f"HV_{alg}"] = HV(ref_point = ref_point)(F)
+            results[seed_idx][f"spread_{alg}"] = compute_spread(F, extreme_1, extreme_2)
+            results[seed_idx][f"spacing_{alg}"] = compute_spacing(F)
+            results[seed_idx][f"time_{alg}"] = end
     return results
-            
-    
-    
+
+
+
     
     
     

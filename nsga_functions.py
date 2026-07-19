@@ -18,9 +18,16 @@ def update_archive(pop_t, archive, N_archive):
     Updates the archive by combining the current population and the existing
     archive, then keeping the best N_archive individuals by rank and crowding.
     '''
-
     pool = Population(len(pop_t) + len(archive))
-    pool.population = [*pop_t.population, *archive.population]
+    pool.population = [*pop_t.population, *archive.population] # pop_t.population + archive.population
+
+    unique = {}
+
+    for ind in [*pop_t.population, *archive.population]:
+        key = tuple(np.asarray(ind.chromosome, dtype=int))
+        unique.setdefault(key, ind)
+    
+    pool.population = list(unique.values())
 
     archive_temp = []
     fronts = fast_non_dominated_sort(pool)
@@ -236,10 +243,12 @@ def generation_algorithm(parent_pop, offspring_pop, N):
     crowding distance. Used in the standard NSGA-II loop.
     '''
     
+    ##### replace duplicates with random individuals
+    
     combined = Population(N)
     combined.population = (parent_pop.population + offspring_pop.population)
     
-    # remove duplicate chromosomes
+    # check if population size is large enough otherwise create random individuals 
     unique = {}
     for ind in combined.population:
         key = tuple(ind.chromosome)
@@ -417,11 +426,10 @@ def add_local_search(population, feat_scores, N_return, rng):
 
     selected = []
     seen = set()
-    sort_nd = np.argsort([ind.rank for ind in population.population])
-    inds = [population.population[i].chromosome.copy() for i in sort_nd]
+    inds = population.population
     
     for ind in inds:
-        c_new = ind
+        c_new = ind.chromosome.copy()
         
         total_score = c_new @ feat_scores
         p = feat_scores / total_score
@@ -438,7 +446,7 @@ def add_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(N_return)
+    pop = Population(len(selected))
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
 
@@ -456,11 +464,10 @@ def remove_local_search(population, feat_scores, N_return, rng):
 
     selected = []
     seen = set()
-    sort_nd = np.argsort([ind.rank for ind in population.population])
-    inds = [population.population[i].chromosome.copy() for i in sort_nd]    
+    inds = population.population
     
     for ind in inds:
-        c_new = ind
+        c_new = ind.chromosome.copy()
         
         total_score = c_new @ feat_scores
         p = feat_scores / total_score
@@ -477,7 +484,7 @@ def remove_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(N_return)
+    pop = Population(len(selected))
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
 
@@ -492,12 +499,12 @@ def merge_local_search(population, N_return, rng):
 
     selected = []
     seen = set()
-    sort_nd = np.argsort([ind.rank for ind in population.population])
-    inds = [population.population[i].chromosome.copy() for i in sort_nd]
- 
+    inds = population.population
+
+    
     for i in range(len(inds)):
         for j in range(i+1, len(inds)):
-            c_new = np.maximum(inds[i], inds[j])
+            c_new = np.maximum(inds[i].chromosome.copy(), inds[j].chromosome.copy())
             
             chrom = tuple(c_new)
             if chrom not in seen and c_new.sum() > 0: 
@@ -505,7 +512,7 @@ def merge_local_search(population, N_return, rng):
                 selected.append(c_new)
         if len(selected) >= N_return:
             break
- 
+    selected = selected[:N_return]
     pop = Population(N_return)
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
@@ -524,8 +531,7 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
 
     selected = []
     seen = set()
-    sort_nd = np.argsort([ind.rank for ind in population.population])
-    inds = [population.population[i] for i in sort_nd]
+    inds = population.population
 
     for ind in inds:
         c_new = ind.chromosome.copy()
@@ -548,7 +554,7 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(N_return)
+    pop = Population(len(selected))
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
             

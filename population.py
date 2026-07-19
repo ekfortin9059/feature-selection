@@ -17,7 +17,7 @@ class Population:
         n_o = round(self.N * ones_prop)
         n_s = round(self.N * seeding_prop)
         
-        importances_idxs = np.argsort(feat_importances)
+        importances_idxs = np.argsort(feat_importances)[::-1]
         
         for i in range(n_s):
             k = importances_idxs[i]
