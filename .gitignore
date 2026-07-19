@@ -1,6 +1,4 @@
 .DS_Store
-<<<<<<< HEAD
-=======
 __pycache__/
 *.pyc
->>>>>>> 68a4924 (Update feature selection code)
+plots/

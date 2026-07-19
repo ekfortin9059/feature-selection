@@ -42,8 +42,13 @@ rng = np.random.default_rng(seed)
 # feature importances based on model evaluation
 feat_importance = SelectFromModel(
     estimator=LinearRegression()
-    ).fit(data.X, data.y).estimator_.coef_[0]
- 
+    ).fit(data.X_train, data.y_train).estimator_.coef_[0]
+
+model_fit = clone(model)
+model_fit.fit(data.X_train, data.y_train)
+feat_importance1 = model_fit.coef_[0]
+
+ #%%
 # generate initial population
 pop_t = Population(population_size)
 pop_t.initialize(data.n, feat_importance, seeding_prop, ones_prop, rng)
