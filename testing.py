@@ -44,24 +44,32 @@ feat_importance = SelectFromModel(
     estimator=LinearRegression()
     ).fit(data.X_train, data.y_train).estimator_.coef_[0]
 
-model_fit = clone(model)
-model_fit.fit(data.X_train, data.y_train)
-feat_importance1 = model_fit.coef_[0]
-
  #%%
 # generate initial population
-pop_t = Population(population_size)
-pop_t.initialize(data.n, feat_importance, seeding_prop, ones_prop, rng)
+pop_t = Population()
+pop_t.initialise(data.n, population_size, feat_importance, seeding_prop, ones_prop, rng)
 pop_t.evaluate(data, LinearRegression(), r2_score)
- 
-# store initial pop in archive 
-archive = Population(population_size)
-archive = nsga.update_archive(pop_t, archive, population_size)
 
-# amount of individuals for offspring coming from LS vs ES
-N_l = round(population_size * ls_param)
-N_e = population_size - N_l
+fronts = nsga.fast_non_dominated_sort(pop_t)
+for front in fronts:
+    nsga.crowding_distance(front)
 
+offspring = nsga.evolutionary_selection(pop_t, crossover_prob, mutation_prob, tournament_param, exploration_param, population_size, 25, rng)
+offspring.evaluate(data, LinearRegression(), r2_score)
+
+#%%
+
+small = Population()
+small.initialise(data.n, 25, feat_importance, seeding_prop, ones_prop, rng)
+small.evaluate(data, LinearRegression(), r2_score) 
+#%% 
+pop_t.update_pop(offspring, population_size, data.n, rng)
+
+#%% 
+test = [[0,0,1,1],[0,0,1,1],[1,0,1,1],[0,1,1,1]]
+
+print(len(test))
+print(len([list(x) for x in set(tuple(i) for i in test)]))
 
 #%% iteration
 fronts = nsga.fast_non_dominated_sort(pop_t)
@@ -77,7 +85,6 @@ A = nd_archive.chromosomes
 model_scores = nd_archive.fitness[:, 0]
 denom = A.sum(axis=0)
 denom[denom == 0] = 1
-feat_scores = (A.T @ -model_scores) / 
 
 
 #%%

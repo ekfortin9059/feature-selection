@@ -18,7 +18,7 @@ def update_archive(pop_t, archive, N_archive):
     Updates the archive by combining the current population and the existing
     archive, then keeping the best N_archive individuals by rank and crowding.
     '''
-    pool = Population(len(pop_t) + len(archive))
+    pool = Population()
     pool.population = [*pop_t.population, *archive.population] # pop_t.population + archive.population
 
     unique = {}
@@ -245,7 +245,8 @@ def generation_algorithm(parent_pop, offspring_pop, N):
     
     ##### replace duplicates with random individuals
     
-    combined = Population(N)
+    combined = Population()
+    combined.population = (parent_pop.population + offspring_pop.population)
     combined.population = (parent_pop.population + offspring_pop.population)
     
     # check if population size is large enough otherwise create random individuals 
@@ -268,7 +269,7 @@ def generation_algorithm(parent_pop, offspring_pop, N):
             new_population.extend(front[:remaining])
             break
         
-    next_population = Population(N)
+    next_population = Population()
     next_population.population = new_population
     return next_population
 
@@ -306,7 +307,7 @@ def special_tournament_select(population, tournament_param,
     ranks = np.argsort([population.population[i].rank for i in range(N)])
     crowdings = np.argsort([population.population[i].crowding_distance for i in range(N)])
     
-    children = Population(a+b)
+    children = Population()
     # select a individuals by rank  (lower rank = better)
     for _ in range(a):
         j = rng.integers(0,len(ranks))
@@ -366,7 +367,7 @@ def evolutionary_selection(population, crossover_prob, mutation_prob,
                     seen.add(chrom)
                     selected.append(chrom)
     
-    pop = Population(N_return)
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     
     return pop
@@ -409,7 +410,7 @@ def original_local_search(population, ls_param, feat_scores, N_return, rng):
                     seen.add(chrom)
                     selected.append(c_new)
     
-    pop = Population(N_return)
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected[:N_return]]
     return pop                        
         
@@ -446,7 +447,7 @@ def add_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(len(selected))
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
 
@@ -484,7 +485,7 @@ def remove_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(len(selected))
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
 
@@ -513,7 +514,7 @@ def merge_local_search(population, N_return, rng):
         if len(selected) >= N_return:
             break
     selected = selected[:N_return]
-    pop = Population(N_return)
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
 
@@ -554,7 +555,7 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
         if len(selected) >= N_return:
             break
     
-    pop = Population(len(selected))
+    pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     return pop
             
