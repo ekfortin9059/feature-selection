@@ -308,19 +308,26 @@ def special_tournament_select(population, tournament_param,
     crowdings = np.argsort([population.population[i].crowding_distance for i in range(N)])
     
     children = Population()
-    # select a individuals by rank  (lower rank = better)
-    for _ in range(a):
+    seen = set()
+   
+    # select a unique individuals by rank  (lower rank = better)
+    while len(children) < a:
         j = rng.integers(0,len(ranks))
         k = rng.integers(0,len(ranks))
-        children.population.append(population.population[ranks[min(j,k)]])
+        if min(j,k) not in seen:
+            seen.add(min(j,k))
+            children.population.append(population.population[ranks[min(j,k)]])
     
     # select b individuals by crowding distance (higher is better)
-    for _ in range(b):
+    while len(children) < (a+b):
         j = rng.integers(0,len(crowdings))
         k = rng.integers(0,len(crowdings))
-        children.population.append(population.population[crowdings[max(j,k)]])
+        if max(j,k) not in seen:
+            seen.add(max(j,k))
+            children.population.append(population.population[crowdings[max(j,k)]])
     
     return children
+
 
 def evolutionary_selection(population, crossover_prob, mutation_prob, 
                            tournament_param, exploration_param, N, N_return, rng):
@@ -424,10 +431,17 @@ def add_local_search(population, feat_scores, N_return, rng):
     p(add feature f) = feat_scores[f] / sum(active feature scores)
     Generates N_return unique valid candidates.
     '''
-
+    # for the selection: use exploration_param = 0 to remove rank-based selection,
+    ## and use tournament_param =1 to preserve selection size. 
+    # safeguard if population size is smaller than the intended return amount
+    if len(population) < N_return:
+        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    else:
+        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
     selected = []
     seen = set()
-    inds = population.population
+    inds = sol_to_explore.population
     
     for ind in inds:
         c_new = ind.chromosome.copy()
@@ -462,10 +476,17 @@ def remove_local_search(population, feat_scores, N_return, rng):
     Equivalently: remove if rand > feat_scores[f] / total_score
     Generates N_return unique valid candidates.
     '''
-
+    # for the selection: use exploration_param = 0 to remove rank-based selection,
+    ## and use tournament_param =1 to preserve selection size. 
+    # safeguard if population size is smaller than the intended return amount
+    if len(population) < N_return:
+        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    else:
+        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
     selected = []
     seen = set()
-    inds = population.population
+    inds = sol_to_explore.population
     
     for ind in inds:
         c_new = ind.chromosome.copy()
@@ -498,9 +519,17 @@ def merge_local_search(population, N_return, rng):
     Generates N_return unique valid candidates.
     '''
 
+    # for the selection: use exploration_param = 0 to remove rank-based selection,
+    ## and use tournament_param =1 to preserve selection size. 
+    # safeguard if population size is smaller than the intended return amount
+    if len(population) < N_return:
+        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    else:
+        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
     selected = []
     seen = set()
-    inds = population.population
+    inds = sol_to_explore.population
 
     
     for i in range(len(inds)):
@@ -530,9 +559,17 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
     Generates N_return unique valid candidates.
     '''
 
+    # for the selection: use exploration_param = 0 to remove rank-based selection,
+    ## and use tournament_param =1 to preserve selection size. 
+    # safeguard if population size is smaller than the intended return amount
+    if len(population) < N_return:
+        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    else:
+        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
     selected = []
     seen = set()
-    inds = population.population
+    inds = sol_to_explore.population
 
     for ind in inds:
         c_new = ind.chromosome.copy()

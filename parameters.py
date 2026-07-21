@@ -12,7 +12,7 @@ COMMON = {
     "archive_size": 100,
     "seeding_prop": 0.4,
     "ones_prop": 0.03,
-    "crossover_prob": 78,
+    "crossover_prob": 0.78,
     "mutation_prob": 0.02,
     "tournament_param": 0.60,
     "exploration_param": 0.50,

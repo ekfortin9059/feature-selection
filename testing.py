@@ -66,10 +66,22 @@ small.evaluate(data, LinearRegression(), r2_score)
 pop_t.update_pop(offspring, population_size, data.n, rng)
 
 #%% 
-test = [[0,0,1,1],[0,0,1,1],[1,0,1,1],[0,1,1,1]]
+A = pop_t.chromosomes
+model_scores = pop_t.fitness[:, 0]
+denom = A.sum(axis=0)
+denom[denom == 0] = 1
+feat_scores = (A.T @ -model_scores) / denom
 
-print(len(test))
-print(len([list(x) for x in set(tuple(i) for i in test)]))
+nd_set = Population()
+nd_set.population = [ind for ind in pop_t.population if ind.rank == 1]
+
+N_l = round(population_size * ls_param)
+LS_return = N_l // 4
+
+# ls1 = nsga.add_local_search(nd_set, feat_scores, LS_return, rng)
+# ls2 = nsga.remove_local_search(nd_set, feat_scores, LS_return, rng)
+ls3 = nsga.merge_local_search(nd_set, round(N_l - LS_return*3), rng)
+# ls4 = nsga.add_remove_local_search(nd_set, feat_scores, round(N_l - LS_return*3), rng)
 
 #%% iteration
 fronts = nsga.fast_non_dominated_sort(pop_t)
