@@ -12,40 +12,6 @@ from individual import Individual
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-def update_archive(pop_t, archive, N_archive):
-    '''
-    Updates the archive by combining the current population and the existing
-    archive, then keeping the best N_archive individuals by rank and crowding.
-    '''
-    pool = Population()
-    pool.population = [*pop_t.population, *archive.population] # pop_t.population + archive.population
-
-    unique = {}
-
-    for ind in [*pop_t.population, *archive.population]:
-        key = tuple(np.asarray(ind.chromosome, dtype=int))
-        unique.setdefault(key, ind)
-    
-    pool.population = list(unique.values())
-
-    archive_temp = []
-    fronts = fast_non_dominated_sort(pool)
-
-    for front in fronts:
-        crowding_distance(front)
-
-        if len(archive_temp) + len(front) <= N_archive:
-            archive_temp.extend(front)
-        else:
-            front.sort(key=lambda ind: ind.crowding_distance, reverse=True)
-            remaining = N_archive - len(archive_temp)
-            archive_temp.extend(front[:remaining])
-            break
-
-    archive.population = archive_temp
-    return archive
-
 def extend_archive(pop_t, archive):
     '''
     Pure union of current population into archive — no truncation.
@@ -434,14 +400,20 @@ def add_local_search(population, feat_scores, N_return, rng):
     # for the selection: use exploration_param = 0 to remove rank-based selection,
     ## and use tournament_param =1 to preserve selection size. 
     # safeguard if population size is smaller than the intended return amount
-    if len(population) < N_return:
-        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
-    else:
-        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    # if len(population) < N_return:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    # else:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
+    
+    
+    # random select 
+    n_select = len(population) if len(population) <= N_return else N_return
+    inds = rng.choice(population.population, size = n_select)
     
     selected = []
     seen = set()
-    inds = sol_to_explore.population
+    #inds = sol_to_explore.population
     
     for ind in inds:
         c_new = ind.chromosome.copy()
@@ -479,14 +451,20 @@ def remove_local_search(population, feat_scores, N_return, rng):
     # for the selection: use exploration_param = 0 to remove rank-based selection,
     ## and use tournament_param =1 to preserve selection size. 
     # safeguard if population size is smaller than the intended return amount
-    if len(population) < N_return:
-        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
-    else:
-        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    # if len(population) < N_return:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    # else:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
+    
+    
+    # random select 
+    n_select = len(population) if len(population) <= N_return else N_return
+    inds = rng.choice(population.population, size = n_select)
     
     selected = []
     seen = set()
-    inds = sol_to_explore.population
+    #inds = sol_to_explore.population
     
     for ind in inds:
         c_new = ind.chromosome.copy()
@@ -522,14 +500,20 @@ def merge_local_search(population, N_return, rng):
     # for the selection: use exploration_param = 0 to remove rank-based selection,
     ## and use tournament_param =1 to preserve selection size. 
     # safeguard if population size is smaller than the intended return amount
-    if len(population) < N_return:
-        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
-    else:
-        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    # if len(population) < N_return:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    # else:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
+    
+    
+    # random select 
+    n_select = len(population) if len(population) <= N_return else N_return
+    inds = rng.choice(population.population, size = n_select)
     
     selected = []
     seen = set()
-    inds = sol_to_explore.population
+    #inds = sol_to_explore.population
 
     
     for i in range(len(inds)):
@@ -562,14 +546,20 @@ def add_remove_local_search(population, feat_scores, N_return, rng):
     # for the selection: use exploration_param = 0 to remove rank-based selection,
     ## and use tournament_param =1 to preserve selection size. 
     # safeguard if population size is smaller than the intended return amount
-    if len(population) < N_return:
-        sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
-    else:
-        sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    # if len(population) < N_return:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, len(population), rng) 
+    # else:
+    #     sol_to_explore = special_tournament_select(population, 1, 0, N_return, rng) 
+    
+    
+    
+    # random select 
+    n_select = len(population) if len(population) <= N_return else N_return
+    inds = rng.choice(population.population, size = n_select)
     
     selected = []
     seen = set()
-    inds = sol_to_explore.population
+    #inds = sol_to_explore.population
 
     for ind in inds:
         c_new = ind.chromosome.copy()

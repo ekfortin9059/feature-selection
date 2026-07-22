@@ -66,66 +66,23 @@ def compute_pareto_extremes(data, eval_model, model, scorer):
     extreme_2 = np.array([-best_r2_single, 1])
     
     return extreme_1, extreme_2
-
-def run_metrics(seeds, N, data, T_max, p_c, p_m, ref_point, 
-                   extreme_1, extreme_2, my_nsga2_func, 
-                   pymoo_problem, pymoo_algorithm, pymoo_minimize):
-    results = []
-    
-    for seed in seeds:
-        # my nsga2 results
-        start = time.time()
-        pop = my_nsga2_func(N, data, T_max, p_c, p_m, seed = seed)
-        my_time = time.time() - start
-        
-        fronts = fast_non_dominated_sort(pop)
-        pareto_front = fronts[0]
-        my_F = np.array([ind.fitness for ind in pareto_front])
-        my_HV = HV(ref_point=ref_point)(my_F)
-        my_spread = compute_spread(my_F, extreme_1, extreme_2)
-        my_spacing = compute_spacing(my_F)
-        
-        # pymoo nsga2 results
-        problem = pymoo_problem(data)
-        algorithm = pymoo_algorithm(p_c, p_m, N)
-        
-        start= time.time()
-        res = pymoo_minimize(problem, algorithm, termination=('n_gen', T_max),
-                             seed = seed, verbose=False)
-        pymoo_time = time.time() - start
-        
-        pymoo_F = res.F
-        pymoo_HV = HV(ref_point=ref_point)(pymoo_F)
-        pymoo_spread = compute_spread(pymoo_F, extreme_1, extreme_2)
-        pymoo_spacing = compute_spacing(pymoo_F)
-
-        results.append({
-            'seed': seed,
-            'my_HV': my_HV,'pymoo_HV': pymoo_HV,
-            'my_spread': my_spread,'pymoo_spread': pymoo_spread,
-            'my_spacing': my_spacing, 'pymoo_spacing': pymoo_spacing,
-            'my_time': my_time, 'pymoo_time': pymoo_time,
-            })
-        
-    return results
         
         
     
 def run_FNSGA_metrics(seeds, data, model, scorer,
                       ref_point, extreme_1, extreme_2, 
                       algorithms, params):
-
     results = []
-    
+    print("Running metrics")
     for seed in seeds:
+        print(f"Seed: {seed}")
+        results.append({"seed": seed})
         for alg in [*algorithms]:
-            results.append({"seed": seed})
             start = time.time()
             nd_front, _, _ = algorithms[alg](data, model, scorer, params[alg], seed=seed, plot=False)
             
     
             end = time.time() - start
-            
             F = nd_front.fitness
             seed_idx = np.where(seeds==seed)[0][0]
             results[seed_idx][f"F_{alg}"] = F
