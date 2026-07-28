@@ -12,45 +12,69 @@ Run and compare algorithms
 # =============================================================================
 # 0. Preliminaries
 # =============================================================================
-import numpy as np 
+import numpy as np
 import matplotlib.pyplot as plt
 import time
+import pandas as pd
+import pickle
+ 
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import r2_score, accuracy_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
 from pymoo.indicators.hv import HV
-from scipy.stats import wilcoxon
-
+from scipy.stats import friedmanchisquare
+ 
 from algorithms import my_FNSGA, replica_FNSGA
-from population import Population
-from individual import Individual
 from data_class import Data
-from parameters import COMMON, REPLICA
-from ML_code import eval_model
-import benchmark_metrics as bm
+from parameters import *
+from evaluator import ModelEvaluator
+import metrics
 
-seed = np.random.choice(10000)
-data = Data(COMMON['dataset_id'])
 
-model = LinearRegression()
-scorer = r2_score
+# seed and data
+seed = 3444
+test_data = Data(54)
 
+# model evaluator (linear regression)
+# evaluator = ModelEvaluator(LinearRegression(), r2_score)
+
+# model evaluator (logistic regression)
+# evaluator = evaluator = ModelEvaluator(Pipeline([('scaler', StandardScaler()),
+#               ('model', LogisticRegression(max_iter=1000))]),
+#     accuracy_score
+# )
+
+ref_point = np.array([1.1, test_data.n + 1])
+ 
 #%% ===========================================================================
-# 1. Single Run of My FNSGA
+# 1. Single Run of My FNSGA (gives plot of pareto front)
 # =============================================================================
+evaluator = ModelEvaluator(
+    Pipeline([('scaler', StandardScaler()),
+          ('model', LogisticRegression(max_iter=1000))]),
+    accuracy_score)
+ref_point = np.array([1.1, test_data.n + 1])
+
+
 
 start = time.time()
-result, fig, ax = my_FNSGA(data, model, scorer, params = COMMON, seed=seed, plot=True)
+result, fig, ax = my_FNSGA(test_data, evaluator, params = {**COMMON, **LOGREG_PARAMS}, seed=seed, plot=False)
 print("Single-Run Results: My FNSGA")
-print(f"\nSeed: {seed}")
+print(f"Seed: {seed}")
 print(f"Runtime: {time.time() - start:.1f}s")
 print(f"Final PF size: {len(result)}")
  
-ref_point = np.array([1.1, data.n + 1])
 fitness = np.array([ind.fitness for ind in result.population])
 hv = HV(ref_point=ref_point)(fitness)
 print(f"Hypervolume: {hv:.4f}")
- 
+
+if ax is None:
+    fig, ax = plt.subplots(figsize=(7, 5))
+
 ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
     edgecolors="black", label = "Nondominated Set (PF)")
 ax.legend(loc='lower right', fontsize=8)
@@ -63,16 +87,18 @@ plt.show()
 replica_params = {**COMMON, **REPLICA}
  
 start = time.time()
-result, fig, ax = replica_FNSGA(data, model, scorer, replica_params, seed=seed, plot=True)
+result, fig, ax = replica_FNSGA(test_data, evaluator, replica_params, seed=seed, plot=True)
 print("Single Run Results: Tom's FNSGA")
-print(f"\nSeed: {seed}")
+print(f"Seed: {seed}")
 print(f"Runtime: {time.time() - start:.1f}s")
 print(f"Final ND set size: {len(result)}")
  
-ref_point = np.array([1.1, data.n + 1])
 fitness = np.array([ind.fitness for ind in result.population])
 hv = HV(ref_point=ref_point)(fitness)
 print(f"Hypervolume: {hv:.4f}")
+
+if ax is None:
+    fig, ax = plt.subplots(figsize=(7, 5))
  
 ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
     edgecolors="black", label = "Final ND Set")
@@ -80,46 +106,105 @@ ax.legend(loc='lower right', fontsize=8)
 ax.set_title(f"FNSGA Replica\nFinal Iteration and Pareto Front | Seed {seed}")
 plt.show()
 
+ 
+
 #%% =============================================================================
-# 3. Multi-seed run (Wilcoxon signed rank)
+# 3. Multi-algorithm comparison run 
 # =============================================================================
-ref_point = np.array([1.1, data.n + 1])
+from algorithms import *
 
-seed_array = np.random.integers(10000, size = 20, replace = False)
-extreme_1, extreme_2 = bm.compute_pareto_extremes( data, eval_model, model, scorer)
+seed_array = np.random.choice(10000, size = 1, replace = False)
+extreme_1, extreme_2 = metrics.compute_pareto_extremes(test_data, evaluator)
 
-algorithms = {"replica": replica_FNSGA, "my": my_FNSGA}
-params = {"replica": {**COMMON, **REPLICA}, "my": COMMON}
+algorithms = {"replica": replica_FNSGA, 
+              "my": my_FNSGA,
+              'nsga2': make_pymoo_runner(make_nsga2),
+              'spea2': make_pymoo_runner(make_spea2),
+              'smsemoa':  make_pymoo_runner(make_smsemoa)}
 
-results = bm.run_FNSGA_metrics(seed_array, data, model, scorer,
+params = {"replica": {**COMMON, **REPLICA}, 
+          "my": COMMON,
+          'nsga2': COMMON,
+          'spea2': COMMON,
+          'smsemoa': COMMON
+          }
+
+results = metrics.run_metrics(seed_array, test_data, evaluator,
                       ref_point, extreme_1, extreme_2, 
-                      algorithms, params)
+                      my_FNSGA, {**COMMON, **LINREG_PARAMS})
 
-# change to mean (sd) table with wilcoxon results
-import pandas as pd
-table = {}
-for r in results:
-    seeds = f"Seed {r['seed']}     "
-    table[seeds] = {
-                    "": "my FNSGA  rep FNSGA |",
-                    "Hypervolume": f"{r['HV_my']:.2f}    {r['HV_replica']:.2f} |",
-                    "Spread": f"{r['spread_my']:.2f}      {r['spread_replica']:.2f} |",
-                    "Spacing": f"{r['spacing_my']:.2f}      {r['spacing_replica']:.2f} |",
-                    "Runtime (s)": f"{r['time_my']:.2f}     {r['time_replica']:.2f} |"}
-    
-    df = pd.DataFrame(table)
-with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
-    print(df)
-    
+df = pd.DataFrame(results)
 
+summary = (df.groupby('algorithm')
+             .agg({
+                 'hypervolume': ['mean', 'std'],
+                 'spacing':     ['mean', 'std'],
+                 'spread':      ['mean', 'std'],
+                 'pf_size':     ['mean', 'std'],
+                 'time':        ['mean', 'std'],
+             })
+             .round(4))
+print(summary)
+
+# --- Friedman test ---
+print("\nFriedman test")
+for metric in ['hypervolume', 'spread', 'spacing', 'time']:
+    groups = [
+        df[df['algorithm'] == alg][metric].values
+        for alg in algorithms
+    ]
+    stat, p = friedmanchisquare(*groups)
+    print(f"  {metric:12s}: stat={stat:.4f}, p={p:.4f}")
+ 
+#%%
+
+with open('results.pkl', 'wb') as f:
+    pickle.dump(df, f)
+print("Full results saved to results.pkl")
+ 
+
+
+#The Wilcoxon signed-rank test tests the null hypothesis that two related 
+#paired samples come from the same distribution. (from scipy.stats documentation)
+from scipy.stats import wilcoxon
 print("Wilcoxon signed-rank test")
-wilcoxon_res = {"HV": [], "spread": [], "spacing": [], "time": []}
 for metric in ["HV", "spread", "spacing", "time"]:
     my = [r[f"{metric}_my"] for r in results]
     replica = [r[f"{metric}_replica"] for r in results]
     diff = np.subtract(my, replica)
     res = wilcoxon(diff)
     print(f"{metric}: (statistic, p-val) = ({res.statistic:.4f}, {res.pvalue:.8f})")
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

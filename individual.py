@@ -19,13 +19,7 @@ class Individual:
         self.domination_count = 0
         self.dominated_solutions = []
         
-    def evaluate_fitness(self, data, model, scorer):
-        # no need to re-evaluate if already done
+    def evaluate(self, data, evaluator):
         if self.fitness is not None:
             return
-        # use -obj1 to convert to minimisation
-        self.fitness = [
-            -eval_model(data, self.chromosome, model, scorer),
-            np.sum(self.chromosome)
-            ]
-
+        self.fitness = evaluator.fitness(data, self.chromosome)

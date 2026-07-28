@@ -49,9 +49,9 @@ class Population:
                 seen.add(chrom)
                 self.population.append(Individual(np.array(chrom)))
         
-    def evaluate(self, data, model, scorer):
+    def evaluate(self, data, evaluator):
         for individual in self.population:
-            individual.evaluate_fitness(data, model, scorer)
+            individual.evaluate(data, evaluator)
     
     def update_pop(self, offspring, N, n_features, rng):
         '''
@@ -72,7 +72,7 @@ class Population:
 
         # check if population size is large enough otherwise create random individuals 
         # (make sure they are unseen first)
-        seen = set()
+        seen = set([tuple(ind.chromosome) for ind in self.population])
         while len(self) < N:
             chrom = tuple(rng.integers(2, size = n_features))
             if chrom not in seen:
