@@ -79,6 +79,8 @@ ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
     edgecolors="black", label = "Nondominated Set (PF)")
 ax.legend(loc='lower right', fontsize=8)
 ax.set_title(f'My FNSGA\nFinal Iteration and Pareto Front | Seed {seed}')
+ax.set_xlabel('Number of Features')
+ax.set_ylabel('R²')
 plt.show()
 
 #%% ===========================================================================
@@ -104,6 +106,8 @@ ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
     edgecolors="black", label = "Final ND Set")
 ax.legend(loc='lower right', fontsize=8)
 ax.set_title(f"FNSGA Replica\nFinal Iteration and Pareto Front | Seed {seed}")
+ax.set_xlabel('Number of Features')
+ax.set_ylabel('R²')
 plt.show()
 
  
