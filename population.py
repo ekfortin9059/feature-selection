@@ -59,7 +59,7 @@ class Population:
         removing duplicates (supplementing with random individuals if needed), 
         then selecting the best N individuals by rank and crowding distance. 
         '''
-        import nsga_functions as nsga
+        import operators
             
         combined = self.population + offspring.population
         
@@ -81,10 +81,10 @@ class Population:
             
         # create the next generation by adding the best solutions from the 
         # combined populations
-        fronts = nsga.fast_non_dominated_sort(self)
+        fronts = operators.fast_non_dominated_sort(self)
         next_pop = []
         for front in fronts:
-            nsga.crowding_distance(front)
+            operators.crowding_distance(front)
             if len(next_pop) + len(front) <= N:
                 next_pop.extend(front)
             else:

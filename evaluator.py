@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun  5 14:32:57 2026
+
+@author: erinfortin
+"""
+import numpy as np
+from sklearn.base import clone
+from sklearn.pipeline import Pipeline
+# =============================================================================
+# Model Evaluation class
+# =============================================================================
+
+class ModelEvaluator:
+    def __init__(self, model, scoring_func):
+        self.model = model
+        self.scoring_func = scoring_func
+        
+    def score(self, data, chromosome):
+        mask = np.array(chromosome).flatten().astype(bool)
+        if not mask.any():
+            return -np.inf
+        
+        if hasattr(data.X_train, 'columns'):
+            X_train = data.X_train.loc[:, mask]
+            X_test = data.X_test.loc[:, mask]
+        else:
+            X_train = data.X_train[:, mask]
+            X_test = data.X_test[:, mask]
+        y_train = data.y_train.values.ravel()
+        y_test = data.y_test.values.ravel()
+        
+        M = clone(self.model)
+        M.fit(X_train, y_train)
+        y_pred = M.predict(X_test)
+        return self.scoring_func(y_test, y_pred)
+    
+    def fitness(self, data, chromosome):
+        return [-self.score(data,chromosome), np.array(chromosome).sum()]
+    
+    def feature_importances(self, data):
+        m = clone(self.model)
+        m.fit(data.X_train, data.y_train.values.ravel())
+        
+        if isinstance(m, Pipeline):
+            final_estimator = m[-1]
+        else:
+            final_estimator = m    
+            
+        if hasattr(final_estimator, 'coef_'):
+            coef = final_estimator.coef_     
+            # coef_ can be 2D for multiclass classifiers
+            return np.abs(coef).mean(axis=0) if coef.ndim > 1 else np.abs(coef)        
+        elif hasattr(final_estimator, 'feature_importances_'):
+            return final_estimator.feature_importances_
+        else:
+            return np.ones(data.n)
+        
+        
+
+
+
+def eval_model(data, F, model, scorer):
+    mask = np.array(F).flatten().astype(bool)
+    if mask.sum() == 0:
+        return 0.0
+    cols = data.X_train.columns[mask]
+    M = clone(model)
+    M.fit(data.X_train[cols], data.y_train)
+    y_pred = M.predict(data.X_test[cols])
+    return scorer(data.y_test.values.ravel(), y_pred)

@@ -29,7 +29,7 @@ from pymoo.indicators.hv import HV
 from scipy.stats import friedmanchisquare
  
 from algorithms import my_FNSGA, replica_FNSGA
-from data_class import Data
+from data import Data
 from parameters import *
 from evaluator import ModelEvaluator
 import metrics

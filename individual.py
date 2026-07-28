@@ -5,8 +5,6 @@ Created on Fri Jun  5 14:29:35 2026
 
 @author: erinfortin
 """
-from ML_code import eval_model
-import numpy as np
 
 class Individual:
     def __init__(self, chromosome):
