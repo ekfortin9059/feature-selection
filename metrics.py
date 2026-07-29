@@ -72,9 +72,9 @@ def run_metrics(seeds, data, evaluator,ref_point,
                       extreme_1, extreme_2, algorithm, params):
     results = []
     for seed in seeds:
-        seed_idx = np.where(seeds==seed)[0][0]
-        print(f"Seed: {seed_idx+1}/{len(seeds)}")
-        
+        seed_idx = np.where(seeds==seed)[0][0]+1
+        if seed_idx in range(1, len(seeds), 4): 
+            print(f"    Seed {seed_idx}/{len(seeds)}") 
         start = time.time()
         nd_front, _, _ = algorithm(
                             data, 
@@ -84,8 +84,10 @@ def run_metrics(seeds, data, evaluator,ref_point,
                             plot=False)
         
         end = time.time() - start
-    
         F = np.array([ind.fitness for ind in nd_front.population])
+        best_idx  = np.argmin(F[:, 0])   
+        worst_idx = np.argmax(F[:, 0])   
+        
         results.append({
         "seed":        seed,
         "hypervolume": HV(ref_point=ref_point)(F),
@@ -93,6 +95,10 @@ def run_metrics(seeds, data, evaluator,ref_point,
         "spacing":     compute_spacing(F),
         "pf_size":     len(F),
         "time":        end,
+        "f1_max":        -F[best_idx, 0],
+        "f2_max":        F[best_idx, 1],
+        "f1_min":        -F[worst_idx, 0],
+        "f2_min":        F[worst_idx, 1]
         })
     return pd.DataFrame(results)
 

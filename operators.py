@@ -142,14 +142,13 @@ def crowded_comparison(a, b, rng):
 # =============================================================================
 # Operator Functions
 # =============================================================================
-def k_point_crossover(parent1, parent2, rng):
+def k_point_crossover(parent1, parent2, rng, k=None):
     '''
-    Performs single-point crossover at a random position k between two parents.
+    Performs single-point crossover at a random position k (or given position) between two parents.
     Returns two offspring individuals.
-    Consistent with Algorithm 3 in the FNSGA paper.
-
     '''
-    k = rng.integers(1, len(parent1.chromosome))
+    if k is None:
+        k = rng.integers(1, len(parent1.chromosome))
     
     offspring1 = np.concatenate([
         parent1.chromosome[:k],
@@ -296,7 +295,7 @@ def special_tournament_select(population, tournament_param,
 
 
 def evolutionary_selection(population, crossover_prob, mutation_prob, 
-                           tournament_param, exploration_param, N, N_return, rng):
+                           tournament_param, exploration_param, N, N_return, rng, k = None):
     '''
     Evolutionary Selection operator as in Algorithm 3 of the FNSGA paper.
     Selects a mating pool C via specialised tournament selection, then
@@ -320,7 +319,7 @@ def evolutionary_selection(population, crossover_prob, mutation_prob,
         if r < crossover_prob:
             idx = rng.choice(len(C), 2, replace = False)
             c1, c2 = C.population[idx[0]], C.population[idx[1]] 
-            o1, o2 = k_point_crossover(c1, c2, rng)    
+            o1, o2 = k_point_crossover(c1, c2, rng, k)    
             
             for o in [o1, o2]:
                 chrom = tuple(o.chromosome.copy())

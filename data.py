@@ -11,7 +11,8 @@ from sklearn.model_selection import train_test_split
 class Data:
     def __init__(self, _id):
         data_obj = fetch_ucirepo(id=_id)
-        self.X = data_obj.data.features
+        X = data_obj.data.features
+        self.X = X.dropna(axis=1)
         self.y = data_obj.data.targets
         self.n = len(self.X.columns)
         self.X_train, self.X_test, self.y_train, self.y_test = \

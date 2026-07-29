@@ -23,13 +23,12 @@ from data import Data
 from parameters import *
 from evaluator import ModelEvaluator
 import metrics
+import os
+import pickle
 
-
-seeds = np.random.choice(10000, size = 1, replace = False)
-
+seeds = np.random.choice(10000, size = 20, replace = False)
 datasets = pd.read_excel('datasets.xlsx')
 
-ref_point = np.array([1.1, test_data.n + 1])
 
 algorithms = {"replica": replica_FNSGA, 
               "my": my_FNSGA,
@@ -63,45 +62,73 @@ evaluators = {
     }
 }
 
-results =[]
+# set up to save results throughout process
+
+
+RESULTS_FILE = 'results_checkpoint.pkl'
+
+# load existing results if resuming after a crash
+if os.path.exists(RESULTS_FILE):
+    with open(RESULTS_FILE, 'rb') as f:
+        results = pickle.load(f)
+    print(f"Resuming from checkpoint: {len(results)} results loaded")
+else:
+    results = []
+
+# build a set of already-completed runs to skip
+completed = {
+    (r['dataset'], r['model'], r['algorithm'], r['seed'])
+    for r in results
+}
+
 for _, ds_row in datasets.iterrows():
-    dataset_id = ds_row["ID"] 
-    dataset_name = ds_row["Name"] 
+    dataset_id = ds_row["ID"]
+    dataset_name = ds_row["Name"]
     task = ds_row["Task"]
-    print(f"\n=== {dataset_name} ({task}) ===")
     data = Data(dataset_id)
-    
     task_evaluators = evaluators[task]
 
     for model_name, evaluator in task_evaluators.items():
-        print(f"  Model: {model_name}")
+        extreme_1, extreme_2 = metrics.compute_pareto_extremes(data, evaluator)
+        ref_point = np.array([1.1, data.n + 1])
+        
         for alg_name, alg_function in algorithms.items():
-            print(f"   Algorithm: {alg_name}")
-            extreme_1, extreme_2 = metrics.compute_pareto_extremes( data, evaluator)
-            metrics_df = metrics.run_metrics(
-                seeds, 
-                data, 
-                evaluator, 
-                ref_point, 
-                extreme_1, 
-                extreme_2, 
-                alg_function, 
-                params[model_name])
+            for seed in seeds:
+                run_info = (dataset_name, model_name, alg_name, int(seed))
+                if run_info in completed:
+                    continue  # skip already-done runs
+        
+        
+                print(f"{dataset_name} | {model_name} | {alg_name} | seed {int(seed)}")
+                try:
+                    metrics_df = metrics.run_metrics(
+                        np.array([seed]), data, evaluator,
+                        ref_point, extreme_1, extreme_2,
+                        alg_function, params[model_name]
+                    )
             
-            metrics_df["dataset"] = dataset_name
-            metrics_df['task'] = task
-            metrics_df['model'] = model_name
-            metrics_df['algorithm'] = alg_name
+                    metrics_df["dataset"] = dataset_name
+                    metrics_df['task'] = task
+                    metrics_df['model'] = model_name
+                    metrics_df['algorithm'] = alg_name
             
-            results.append(metrics_df)
+                    results.append(metrics_df)
+                    completed.add(run_info)
+                    
+                    with open(RESULTS_FILE, 'wb') as f:
+                        pickle.dump(results, f)
+                except Exception as e:
+                    print(f"  ERROR: {e} — skipping")
             
-results_df = pd.concat(results, ignore_index=True)
+results_df = pd.concat(results, ignore_index=True)       
+results_df.to_csv('results_final.csv', index=False)     
+
             
-            
-            
+if os.path.exists(RESULTS_FILE):
+    with open(RESULTS_FILE, 'rb') as f:
+        results = pickle.load(f)    
     
-    
-    
+        
     
     
     

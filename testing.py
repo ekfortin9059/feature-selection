@@ -34,10 +34,10 @@ from parameters import *
 from evaluator import ModelEvaluator
 import metrics
 
-
+#%%
 # seed and data
 seed = 3444
-test_data = Data(54)
+test_data = Data(63)
 
 # model evaluator (linear regression)
 # evaluator = ModelEvaluator(LinearRegression(), r2_score)
@@ -57,12 +57,9 @@ evaluator = ModelEvaluator(
     Pipeline([('scaler', StandardScaler()),
           ('model', LogisticRegression(max_iter=1000))]),
     accuracy_score)
-ref_point = np.array([1.1, test_data.n + 1])
-
-
 
 start = time.time()
-result, fig, ax = my_FNSGA(test_data, evaluator, params = {**COMMON, **LOGREG_PARAMS}, seed=seed, plot=False)
+result, fig, ax = my_FNSGA(test_data, evaluator, params = {**COMMON, **LOGREG_PARAMS}, seed=seed, plot=True)
 print("Single-Run Results: My FNSGA")
 print(f"Seed: {seed}")
 print(f"Runtime: {time.time() - start:.1f}s")
@@ -80,13 +77,18 @@ ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
 ax.legend(loc='lower right', fontsize=8)
 ax.set_title(f'My FNSGA\nFinal Iteration and Pareto Front | Seed {seed}')
 ax.set_xlabel('Number of Features')
-ax.set_ylabel('R²')
+ax.set_ylabel('Score')
 plt.show()
 
 #%% ===========================================================================
 # 2. Single Run of Tom's FNSGA
 # =============================================================================
-replica_params = {**COMMON, **REPLICA}
+evaluator = ModelEvaluator(
+    Pipeline([('scaler', StandardScaler()),
+          ('model', LogisticRegression(max_iter=1000))]),
+    accuracy_score)
+
+replica_params = {**COMMON, **LOGREG_PARAMS}
  
 start = time.time()
 result, fig, ax = replica_FNSGA(test_data, evaluator, replica_params, seed=seed, plot=True)
@@ -107,7 +109,7 @@ ax.scatter(fitness[:, 1], -fitness[:, 0],facecolors="none",
 ax.legend(loc='lower right', fontsize=8)
 ax.set_title(f"FNSGA Replica\nFinal Iteration and Pareto Front | Seed {seed}")
 ax.set_xlabel('Number of Features')
-ax.set_ylabel('R²')
+ax.set_ylabel('Score')
 plt.show()
 
  

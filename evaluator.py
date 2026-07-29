@@ -8,6 +8,8 @@ Created on Fri Jun  5 14:32:57 2026
 import numpy as np
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import SelectFromModel
+
 # =============================================================================
 # Model Evaluation class
 # =============================================================================
@@ -58,15 +60,23 @@ class ModelEvaluator:
             return np.ones(data.n)
         
         
+    def feature_importances_sfm(self, data):
+        model = clone(self.model)
+        model.fit(data.X_train, data.y_train.values.ravel())
+        
+        selector = SelectFromModel(estimator = model, prefit=True)
+        
+        estimator = selector.estimator
+        
+        if isinstance(estimator, Pipeline):
+            estimator = estimator[-1]
+            
+        if hasattr(estimator, "feature_importances_"):
+            return estimator.feature_importances_
 
-
-
-def eval_model(data, F, model, scorer):
-    mask = np.array(F).flatten().astype(bool)
-    if mask.sum() == 0:
-        return 0.0
-    cols = data.X_train.columns[mask]
-    M = clone(model)
-    M.fit(data.X_train[cols], data.y_train)
-    y_pred = M.predict(data.X_test[cols])
-    return scorer(data.y_test.values.ravel(), y_pred)
+        if hasattr(estimator, "coef_"):
+            coef = estimator.coef_
+            return np.abs(coef).mean(axis=0) if coef.ndim > 1 else np.abs(coef)
+        
+        return np.ones(data.n)
+            

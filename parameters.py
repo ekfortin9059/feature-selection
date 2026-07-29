@@ -19,7 +19,8 @@ SVC_PARAMS = {
     "ls_param": 0.61,
     "seeding_prop":0.02 ,
     "ones_prop": 0.04,
-    "L": 11
+    "L": 11,
+    "k": 2
 }
 
 DT_PARAMS = {
@@ -30,7 +31,8 @@ DT_PARAMS = {
     "ls_param": 0.81,
     "seeding_prop":0.02 ,
     "ones_prop": 0.05,
-    "L": 8
+    "L": 8,
+    "k": 3
 }
 
 LOGREG_PARAMS = {
@@ -41,7 +43,8 @@ LOGREG_PARAMS = {
     "ls_param": 0.71,
     "seeding_prop":0.02 ,
     "ones_prop": 0.04,
-    "L": 11
+    "L": 11,
+    "k": 2
 }
 
 LINREG_PARAMS = {
@@ -52,5 +55,6 @@ LINREG_PARAMS = {
     "ls_param": 0.43,
     "seeding_prop":0.03 ,
     "ones_prop": 0.03,
-    "L": 7
+    "L": 7,
+    "k": 2
 }

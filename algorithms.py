@@ -47,10 +47,8 @@ def my_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     ones_prop = params["ones_prop"]
     ls_param = params["ls_param"]
      
-    # get feature importances based on model evaluation 
-    ## note: removed use of SelectFromModel, as we do not actually implement the selection part of the transformer. 
+    # feature importances from ML model
     feat_importances = model_evaluator.feature_importances(data)
-
     
     # generate initial population (including rank and crowding distance)
     pop_t = Population()
@@ -182,15 +180,17 @@ def replica_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     ls_param = params["ls_param"]
     
     L = params["L"]
+    k = params["k"]
     
-    # feature importances from ML model
-    feat_importance = model_evaluator.feature_importances(data)
+    
+    # get feature importances based on model evaluation (using selectfrommodel as in paper)
+    s0 = model_evaluator.feature_importances_sfm(data)
     
     # initialise population and evaluate
     pop_t = Population()
-    pop_t.initialise(data.n, N, np.abs(feat_importance).flatten(), seeding_prop, ones_prop, rng)
+    pop_t.initialise(data.n, N, s0, seeding_prop, ones_prop, rng)
     
-    # initialise archive and store population
+    # Evaluate model scores, store in archive
     pop_t.evaluate(data, model_evaluator)
     archive = Population()
     archive = operators.extend_archive(pop_t, archive)
@@ -223,26 +223,20 @@ def replica_FNSGA(data, model_evaluator, params, seed=None, plot=False):
         nd_set.population = [ind for ind in archive.population if ind.rank == 1]
         
         # evolutionary selection
-        evo_pop = operators.evolutionary_selection(
-            archive,
-            p_c,
-            p_m,
-            tournament_param,
-            exploration_param,
-            len(archive),
-            N_e,
-            rng
-        )
-        evo_pop.evaluate(data, model_evaluator)
+        evo_pop = operators.evolutionary_selection(archive, p_c, p_m, 
+                                                   tournament_param, 
+                                                   exploration_param,
+                                                   len(archive), N_e, rng, k = k)
 
         # local search
-        ls_pop = operators.original_local_search(nd_set, min(L, len(nd_set)), feat_scores, N_l, rng)
-        ls_pop.evaluate(data, model_evaluator)
+        ls_pop = operators.original_local_search(nd_set, min(L, len(nd_set)), 
+                                                 feat_scores, N_l, rng)
         
         # shuffle
         offspring = Population()
         offspring.population = [*evo_pop.population, *ls_pop.population]
         rng.shuffle(offspring.population)
+        offspring.evaluate(data, model_evaluator)
 
         # update main archive with this iteration's solutions
         archive = operators.extend_archive(offspring, archive)
