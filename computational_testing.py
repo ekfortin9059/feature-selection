@@ -26,7 +26,6 @@ import metrics
 
 import os
 import pickle
-import itertools
 from joblib import Parallel, delayed
 
 def run_single_task(task_tuple, data, evaluator, 
@@ -54,7 +53,7 @@ def run_single_task(task_tuple, data, evaluator,
         metrics_df['model'] = model_name
         metrics_df['algorithm'] = alg_name
         
-        with open(checkpoint_name, 'wb') as f:
+        with open(output_file, 'wb') as f:
             pickle.dump(metrics_df, f)
             
         return metrics_df
@@ -168,7 +167,7 @@ if __name__ == '__main__':
     
     for task_info in all_tasks:
         dataset_name, model_name, alg_name, seed, _, _ = task_info
-        chk_path = f"checkpoints/run_{ds_name}_{md_name}_{al_name}_{sd}.pkl"
+        chk_path = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
         if os.path.exists(chk_path):
             with open(chk_path, 'rb') as f:
                 compiled_results.append(pickle.load(f))
