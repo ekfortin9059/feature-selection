@@ -48,7 +48,7 @@ test_data = Data(63)
 #     accuracy_score
 # )
 
-ref_point = np.array([1.1, test_data.n + 1])
+ref_point = np.array([0.05, test_data.n + 1])
  
 #%% ===========================================================================
 # 1. Single Run of My FNSGA (gives plot of pareto front)

@@ -18,31 +18,13 @@ def compute_spacing(F):
     '''
     d = np.empty(len(F))
     
-    for i in range(len(F)):
-        distances = np.sum(np.abs(F[i] - F), axis=1)
-        distances[i] = np.inf
-        d[i] = np.min(distances)
+    dist_matrix = np.sum(np.abs(F[:, np.newaxis, :] - F[np.newaxis, :, :]), axis=-1)
+    np.fill_diagonal(dist_matrix, np.inf)
+    d = np.min(dist_matrix, axis=1)
     
     return (np.sum((d - np.mean(d)) ** 2) / (len(F) - 1))
 
 
-def compute_spread(F, extreme_1, extreme_2):
-    '''
-    Computes the spread metric as defined in Deb et al (2002). 
-    '''
-    
-    F_sorted = F[np.argsort(F[:,0])] # sort by first obj
-    consecutive_dists = np.linalg.norm(np.diff(F_sorted, axis=0), axis=1)
-    d_mean = consecutive_dists.mean()
-    
-    d_f = np.linalg.norm(F_sorted[0] - extreme_1)
-    d_l = np.linalg.norm(F_sorted[-1] - extreme_2)
-
-    num = d_f + d_l + np.sum(np.abs(consecutive_dists - d_mean))
-    den = d_f + d_l + (len(consecutive_dists) * d_mean)
-    
-    return num / den
-    
      
 def compute_pareto_extremes(data, evaluator):
     '''
@@ -66,7 +48,25 @@ def compute_pareto_extremes(data, evaluator):
     extreme_2 = np.array([-best_single, 1])
  
     return extreme_1, extreme_2   
-        
+
+
+def compute_spread(F, extreme_1, extreme_2):
+    '''
+    Computes the spread metric as defined in Deb et al (2002). 
+    '''
+    
+    F_sorted = F[np.argsort(F[:,0])] # sort by first obj
+    consecutive_dists = np.linalg.norm(np.diff(F_sorted, axis=0), axis=1)
+    d_mean = consecutive_dists.mean()
+    
+    d_f = np.linalg.norm(F_sorted[0] - extreme_1)
+    d_l = np.linalg.norm(F_sorted[-1] - extreme_2)
+
+    num = d_f + d_l + np.sum(np.abs(consecutive_dists - d_mean))
+    den = d_f + d_l + (len(consecutive_dists) * d_mean)
+    
+    return num / den
+    
     
 def run_metrics(seeds, data, evaluator,ref_point, 
                       extreme_1, extreme_2, algorithm, params):

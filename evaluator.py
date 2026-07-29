@@ -42,22 +42,22 @@ class ModelEvaluator:
         return [-self.score(data,chromosome), np.array(chromosome).sum()]
     
     def feature_importances(self, data):
-        m = clone(self.model)
-        m.fit(data.X_train, data.y_train.values.ravel())
+        model = clone(self.model)
+        model.fit(data.X_train, data.y_train.values.ravel())
         
-        if isinstance(m, Pipeline):
-            final_estimator = m[-1]
+        if isinstance(model, Pipeline):
+            estimator = model[-1]
         else:
-            final_estimator = m    
+            estimator = model  
             
-        if hasattr(final_estimator, 'coef_'):
-            coef = final_estimator.coef_     
-            # coef_ can be 2D for multiclass classifiers
-            return np.abs(coef).mean(axis=0) if coef.ndim > 1 else np.abs(coef)        
-        elif hasattr(final_estimator, 'feature_importances_'):
-            return final_estimator.feature_importances_
-        else:
-            return np.ones(data.n)
+        if hasattr(estimator, "feature_importances_"):
+            return estimator.feature_importances_
+        
+        if hasattr(estimator, "coef_"):
+            coef = estimator.coef_
+            return np.abs(coef).mean(axis=0) if coef.ndim > 1 else np.abs(coef)
+        
+        return np.ones(data.n)
         
         
     def feature_importances_sfm(self, data):

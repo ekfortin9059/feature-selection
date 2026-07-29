@@ -318,14 +318,15 @@ def make_pymoo_runner(alg_factory):
     from individual import Individual
  
     def run(data, evaluator, params, seed=None, plot=False):
+        pymoo_seed = np.random.RandomState(seed) if seed is not None else None
+        
         problem = FeatureSelectionProblem(data, evaluator)
         algorithm = alg_factory(params, seed)
         res = minimize(
             problem, algorithm,
             termination=('n_gen', params['generations']),
-            seed=seed, verbose=False
+            seed=pymoo_seed, verbose=False
         )
-        # wrap result in Population-like object for consistent interface
         nd = type('Population', (), {'population': [], 'fitness': None})()
         inds = []
         for i, x in enumerate(res.X):

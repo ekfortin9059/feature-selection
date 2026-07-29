@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Multi-dataset testing -- temp file
+Multi-dataset testing 
 
 @author: erinfortin
 """
@@ -23,124 +23,158 @@ from data import Data
 from parameters import *
 from evaluator import ModelEvaluator
 import metrics
+
 import os
 import pickle
+import itertools
+from joblib import Parallel, delayed
 
-seeds = np.random.choice(10000, size = 20, replace = False)
-datasets = pd.read_excel('datasets.xlsx')
+def run_single_task(task_tuple, data, evaluator, 
+                    ref_point, extreme_1, extreme_2):
+    
+    dataset_name, model_name, alg_name, seed, task = task_tuple
+    
+    output_file = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
+    if os.path.exists(output_file):
+        return None
+    
+    try:
+        np.random.seed(seed)
+        
+        alg_function = algorithms[alg_name]
+        
+        
+        metrics_df = metrics.run_metrics(
+            np.array([seed]), data, evaluator,
+            ref_point, extreme_1, extreme_2,
+            alg_function, params[model_name]
+        )
+        metrics_df["dataset"] = dataset_name
+        metrics_df['task'] = task
+        metrics_df['model'] = model_name
+        metrics_df['algorithm'] = alg_name
+        
+        with open(checkpoint_name, 'wb') as f:
+            pickle.dump(metrics_df, f)
+            
+        return metrics_df
+    
+    except Exception as e:
+        print(f"ERROR on {dataset_name} | {model_name} | {alg_name} | seed {seed}: {e}")
+        return None
 
 
-algorithms = {"replica": replica_FNSGA, 
-              "my": my_FNSGA,
-              'nsga2': make_pymoo_runner(make_nsga2),
-              'spea2': make_pymoo_runner(make_spea2),
-              'smsemoa':  make_pymoo_runner(make_smsemoa)}
+if __name__ == '__main__':
+    
+    os.makedirs('checkpoints', exist_ok=True)
+    
+    #configurations
+    seeds = np.random.choice(10000, size = 20, replace = False)
+    datasets = pd.read_excel('datasets.xlsx')
 
-params = {'LinReg': {**COMMON, **LINREG_PARAMS},
-          'LogReg':{**COMMON, **LOGREG_PARAMS},
-          'SVC':{**COMMON, **SVC_PARAMS},
-          'DT': {**COMMON, **DT_PARAMS}
+    algorithms = {"replica": replica_FNSGA, 
+                  "my": my_FNSGA,
+                  'nsga2': make_pymoo_runner(make_nsga2),
+                  'spea2': make_pymoo_runner(make_spea2),
+                  'smsemoa':  make_pymoo_runner(make_smsemoa)}
+
+    params = {'LinReg': {**COMMON, **LINREG_PARAMS},
+              'LogReg':{**COMMON, **LOGREG_PARAMS},
+              'SVC':{**COMMON, **SVC_PARAMS},
+              'DT': {**COMMON, **DT_PARAMS}}
+
+    evaluators = {
+        'regression':{
+            'LinReg': ModelEvaluator(LinearRegression(), r2_score)
+            },
+        
+        'classification':{
+            'LogReg': ModelEvaluator(
+                Pipeline([('scaler', StandardScaler()),
+                      ('model', LogisticRegression(max_iter=1000))]),
+                accuracy_score),
+            
+            'SVC': ModelEvaluator(
+                Pipeline([('scaler', StandardScaler()),
+                      ('model', SVC(kernel='rbf'))]), 
+                accuracy_score),
+            
+            'DT': ModelEvaluator(DecisionTreeClassifier(max_depth=5), accuracy_score)
+        }
     }
 
-evaluators = {
-    'regression':{
-        'LinReg': ModelEvaluator(LinearRegression(), r2_score)
-        },
+    all_tasks = []
+    dataset_cache = {}
     
-    'classification':{
-        'LogReg': ModelEvaluator(
-            Pipeline([('scaler', StandardScaler()),
-                  ('model', LogisticRegression(max_iter=1000))]),
-            accuracy_score),
+    print("load data and compute Pareto extremes")
+    
+    for _, ds_row in datasets.iterrows():
+        dataset_id = ds_row["ID"]
+        dataset_name = ds_row["Name"]
+        task = ds_row["Task"]
+        task_evaluators = evaluators[task] # classification or regression data set
         
-        'SVC': ModelEvaluator(
-            Pipeline([('scaler', StandardScaler()),
-                  ('model', SVC(kernel='rbf'))]), 
-            accuracy_score),
-        
-        'DT': ModelEvaluator(DecisionTreeClassifier(max_depth=5), accuracy_score)
-    }
-}
-
-# set up to save results throughout process
-
-
-RESULTS_FILE = 'results_checkpoint.pkl'
-
-# load existing results if resuming after a crash
-if os.path.exists(RESULTS_FILE):
-    with open(RESULTS_FILE, 'rb') as f:
-        results = pickle.load(f)
-    print(f"Resuming from checkpoint: {len(results)} results loaded")
-else:
-    results = []
-
-# build a set of already-completed runs to skip
-completed = {
-    (r['dataset'], r['model'], r['algorithm'], r['seed'])
-    for r in results
-}
-
-for _, ds_row in datasets.iterrows():
-    dataset_id = ds_row["ID"]
-    dataset_name = ds_row["Name"]
-    task = ds_row["Task"]
-    data = Data(dataset_id)
-    task_evaluators = evaluators[task]
-
-    for model_name, evaluator in task_evaluators.items():
-        extreme_1, extreme_2 = metrics.compute_pareto_extremes(data, evaluator)
-        ref_point = np.array([1.1, data.n + 1])
-        
-        for alg_name, alg_function in algorithms.items():
-            for seed in seeds:
-                run_info = (dataset_name, model_name, alg_name, int(seed))
-                if run_info in completed:
-                    continue  # skip already-done runs
-        
-        
-                print(f"{dataset_name} | {model_name} | {alg_name} | seed {int(seed)}")
-                try:
-                    metrics_df = metrics.run_metrics(
-                        np.array([seed]), data, evaluator,
-                        ref_point, extreme_1, extreme_2,
-                        alg_function, params[model_name]
-                    )
+        #save previous evaluations of loading data and calculating extreme/ref points
+        if dataset_id not in dataset_cache:
+            data = Data(dataset_id)
+            cached_evaluations = {}
             
-                    metrics_df["dataset"] = dataset_name
-                    metrics_df['task'] = task
-                    metrics_df['model'] = model_name
-                    metrics_df['algorithm'] = alg_name
+            for model_name, evaluator in task_evaluators.items():
+                ext_1, ext_2 = metrics.compute_pareto_extremes(data, evaluator)
+                ref_pt = np.array([0.05, data.n + 1])  #strictly worst solution for the form [-score, n_feat]
+                
+                cached_evaluations[model_name] = {
+                    "evaluator": evaluator,
+                    "extreme_1": ext_1,
+                    "extreme_2": ext_2,
+                    "ref_point": ref_pt
+                    }
+            dataset_cache[dataset_id] = {"data": data, "evaluations": cached_evaluations}
             
-                    results.append(metrics_df)
-                    completed.add(run_info)
-                    
-                    with open(RESULTS_FILE, 'wb') as f:
-                        pickle.dump(results, f)
-                except Exception as e:
-                    print(f"  ERROR: {e} — skipping")
-            
-results_df = pd.concat(results, ignore_index=True)       
-results_df.to_csv('results_final.csv', index=False)     
+            for model_name in task_evaluators.keys():
+                for alg_name in algorithms.keys():
+                    for seed in seeds:
+                        all_tasks.append((dataset_name, model_name, alg_name, seed, task, dataset_id))
+                        
+    tasks_to_run = []
+    for task_info in all_tasks:
+        dataset_name, model_name, alg_name, seed, _, _ = task_info
+        chk_path = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
+        if not os.path.exists(chk_path):
+            tasks_to_run.append(task_info)
+    
+    # multi-run execution using Parallel processes      
+    print(f"Total experiment matrix setup: {len(all_tasks)} runs.")
+    print(f"Remaining tasks to evaluate: {len(tasks_to_run)} runs.")
 
-            
-if os.path.exists(RESULTS_FILE):
-    with open(RESULTS_FILE, 'rb') as f:
-        results = pickle.load(f)    
+    if len(tasks_to_run) > 0:
+        print("\nStarting parallel experiment runs")
+        Parallel(n_jobs = -2, verbose = 10)(
+            delayed(run_single_task)(
+                task_tuple = (dataset_name, model_name, alg_name, seed, task),
+                data = dataset_cache[dataset_id]["data"],
+                evaluator=dataset_cache[dataset_id]["evaluations"][model_name]["evaluator"],
+                ref_point=dataset_cache[dataset_id]["evaluations"][model_name]["ref_point"],
+                extreme_1=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_1"],
+                extreme_2=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_2"],
+                param_dict=params[model_name]
+            )
+            for dataset_name, model_name, alg_name, seed, task, dataset_id in tasks_to_run
+        )
+    else:
+        print("\nAll tasks completed")
     
+    compiled_results = []
+    
+    for task_info in all_tasks:
+        dataset_name, model_name, alg_name, seed, _, _ = task_info
+        chk_path = f"checkpoints/run_{ds_name}_{md_name}_{al_name}_{sd}.pkl"
+        if os.path.exists(chk_path):
+            with open(chk_path, 'rb') as f:
+                compiled_results.append(pickle.load(f))
         
+    if compiled_results:
+        results_df = pd.concat(compiled_results, ignore_index=True)
+        results_df.to_csv('results_final.csv', index=False)
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+            

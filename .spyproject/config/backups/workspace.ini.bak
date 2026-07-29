@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['parameters.py', 'metrics.py', 'evaluator.py', 'operators.py', 'testing.py', 'population.py', 'algorithms.py', 'individual.py', 'data.py', 'computational_testing.py', '.gitignore']
+recent_files = ['computational_testing.py', 'metrics.py', 'algorithms.py', 'evaluator.py']
 
 [main]
 version = 0.2.0
