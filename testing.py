@@ -36,11 +36,12 @@ import metrics
 
 #%%
 # seed and data
+
 seed = 3444
-test_data = Data(63)
+test_data = Data(183)
 
 # model evaluator (linear regression)
-# evaluator = ModelEvaluator(LinearRegression(), r2_score)
+evaluator = ModelEvaluator(LinearRegression(), r2_score)
 
 # model evaluator (logistic regression)
 # evaluator = evaluator = ModelEvaluator(Pipeline([('scaler', StandardScaler()),
@@ -49,7 +50,8 @@ test_data = Data(63)
 # )
 
 ref_point = np.array([0.05, test_data.n + 1])
- 
+ext_1, ext_2 = metrics.compute_pareto_extremes(test_data, evaluator)
+
 #%% ===========================================================================
 # 1. Single Run of My FNSGA (gives plot of pareto front)
 # =============================================================================
@@ -57,6 +59,7 @@ evaluator = ModelEvaluator(
     Pipeline([('scaler', StandardScaler()),
           ('model', LogisticRegression(max_iter=1000))]),
     accuracy_score)
+ext_1, ext_2 = metrics.compute_pareto_extremes(test_data, evaluator)
 
 start = time.time()
 result, fig, ax = my_FNSGA(test_data, evaluator, params = {**COMMON, **LOGREG_PARAMS}, seed=seed, plot=True)

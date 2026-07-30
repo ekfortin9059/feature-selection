@@ -310,8 +310,13 @@ class FeatureSelectionProblem(ElementwiseProblem):
         self.evaluator = evaluator
  
     def _evaluate(self, X, out, *args, **kwargs):
-        score = self.evaluator.score(self.data, X.astype(bool))
-        out['F'] = np.column_stack([-score, np.sum(X)])
+        X_bool = X.astype(bool)
+        # if no features are selected, make sure obj values are always dominated
+        if not X_bool.any():
+            out['F'] = np.array([1.1, 0])  
+            return
+        score = self.evaluator.score(self.data, X_bool)
+        out['F'] = np.array([-score, X_bool.sum()])
  
 
 def make_pymoo_runner(alg_factory):

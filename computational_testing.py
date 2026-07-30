@@ -29,9 +29,9 @@ import pickle
 from joblib import Parallel, delayed
 
 def run_single_task(task_tuple, data, evaluator, 
-                    ref_point, extreme_1, extreme_2):
+                    ref_point, extreme_1, extreme_2, param_dict):
     
-    dataset_name, model_name, alg_name, seed, task = task_tuple
+    dataset_name, model_name, alg_name, alg_function, seed, task = task_tuple
     
     output_file = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
     if os.path.exists(output_file):
@@ -39,14 +39,11 @@ def run_single_task(task_tuple, data, evaluator,
     
     try:
         np.random.seed(seed)
-        
-        alg_function = algorithms[alg_name]
-        
-        
+                
         metrics_df = metrics.run_metrics(
             np.array([seed]), data, evaluator,
             ref_point, extreme_1, extreme_2,
-            alg_function, params[model_name]
+            alg_function, param_dict
         )
         metrics_df["dataset"] = dataset_name
         metrics_df['task'] = task
@@ -105,7 +102,7 @@ if __name__ == '__main__':
     all_tasks = []
     dataset_cache = {}
     
-    print("load data and compute Pareto extremes")
+    print("Loading data and evaluating pareto extremes and ref point")
     
     for _, ds_row in datasets.iterrows():
         dataset_id = ds_row["ID"]
@@ -131,13 +128,15 @@ if __name__ == '__main__':
             dataset_cache[dataset_id] = {"data": data, "evaluations": cached_evaluations}
             
             for model_name in task_evaluators.keys():
-                for alg_name in algorithms.keys():
+                for alg_name, alg_function in algorithms.items():
                     for seed in seeds:
-                        all_tasks.append((dataset_name, model_name, alg_name, seed, task, dataset_id))
-                        
+                        all_tasks.append((dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id))
+    
+    print("Completed data loading")
+                   
     tasks_to_run = []
     for task_info in all_tasks:
-        dataset_name, model_name, alg_name, seed, _, _ = task_info
+        dataset_name, model_name, alg_name, _, seed, _, _ = task_info
         chk_path = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
         if not os.path.exists(chk_path):
             tasks_to_run.append(task_info)
@@ -150,15 +149,15 @@ if __name__ == '__main__':
         print("\nStarting parallel experiment runs")
         Parallel(n_jobs = -2, verbose = 10)(
             delayed(run_single_task)(
-                task_tuple = (dataset_name, model_name, alg_name, seed, task),
+                task_tuple = (dataset_name, model_name, alg_name, alg_function, seed, task),
                 data = dataset_cache[dataset_id]["data"],
                 evaluator=dataset_cache[dataset_id]["evaluations"][model_name]["evaluator"],
                 ref_point=dataset_cache[dataset_id]["evaluations"][model_name]["ref_point"],
                 extreme_1=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_1"],
                 extreme_2=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_2"],
-                param_dict=params[model_name]
+                param_dict=params[model_name],
             )
-            for dataset_name, model_name, alg_name, seed, task, dataset_id in tasks_to_run
+            for dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id in tasks_to_run
         )
     else:
         print("\nAll tasks completed")
@@ -166,7 +165,7 @@ if __name__ == '__main__':
     compiled_results = []
     
     for task_info in all_tasks:
-        dataset_name, model_name, alg_name, seed, _, _ = task_info
+        dataset_name, model_name, alg_name, _, seed, _, _ = task_info
         chk_path = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
         if os.path.exists(chk_path):
             with open(chk_path, 'rb') as f:
