@@ -8,8 +8,6 @@ Multi-dataset testing
 
 from algorithms import *
 import numpy as np
-import matplotlib.pyplot as plt
-import time
 import pandas as pd
 
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -72,12 +70,12 @@ if __name__ == '__main__':
                   "my": my_FNSGA,
                   'nsga2': make_pymoo_runner(make_nsga2),
                   'spea2': make_pymoo_runner(make_spea2),
-                  'smsemoa':  make_pymoo_runner(make_smsemoa)}
+                  'moead': make_pymoo_runner(make_moead),
+                  'smsemoa':  make_pymoo_runner(make_smsemoa),
+                  'dnsga2':  make_pymoo_runner(make_dnsga2),
+                  'nsde':  make_pymoo_runner(make_nsde)
+}
 
-    params = {'LinReg': {**COMMON, **LINREG_PARAMS},
-              'LogReg':{**COMMON, **LOGREG_PARAMS},
-              'SVC':{**COMMON, **SVC_PARAMS},
-              'DT': {**COMMON, **DT_PARAMS}}
 
     evaluators = {
         'regression':{
@@ -112,12 +110,13 @@ if __name__ == '__main__':
         
         #save previous evaluations of loading data and calculating extreme/ref points
         if dataset_id not in dataset_cache:
+            print(f"Importing dataset {dataset_name}")
             data = Data(dataset_id)
             cached_evaluations = {}
             
             for model_name, evaluator in task_evaluators.items():
                 ext_1, ext_2 = metrics.compute_pareto_extremes(data, evaluator)
-                ref_pt = np.array([0.05, data.n + 1])  #strictly worst solution for the form [-score, n_feat]
+                ref_pt = np.array([0.0, data.n])  # worst solution for the form [-score, n_feat]
                 
                 cached_evaluations[model_name] = {
                     "evaluator": evaluator,
@@ -129,14 +128,15 @@ if __name__ == '__main__':
             
             for model_name in task_evaluators.keys():
                 for alg_name, alg_function in algorithms.items():
+                    param_dict = get_algorithm_params(alg_name, model_name)
                     for seed in seeds:
-                        all_tasks.append((dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id))
+                        all_tasks.append((dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id, param_dict))
     
     print("Completed data loading")
                    
     tasks_to_run = []
     for task_info in all_tasks:
-        dataset_name, model_name, alg_name, _, seed, _, _ = task_info
+        dataset_name, model_name, alg_name, _, seed, _, _, _ = task_info         
         chk_path = f"checkpoints/run_{dataset_name}_{model_name}_{alg_name}_{seed}.pkl"
         if not os.path.exists(chk_path):
             tasks_to_run.append(task_info)
@@ -149,15 +149,15 @@ if __name__ == '__main__':
         print("\nStarting parallel experiment runs")
         Parallel(n_jobs = -2, verbose = 10)(
             delayed(run_single_task)(
-                task_tuple = (dataset_name, model_name, alg_name, alg_function, seed, task),
-                data = dataset_cache[dataset_id]["data"],
+                task_tuple=(dataset_name, model_name, alg_name, alg_function, seed, task),
+                data=dataset_cache[dataset_id]["data"],
                 evaluator=dataset_cache[dataset_id]["evaluations"][model_name]["evaluator"],
                 ref_point=dataset_cache[dataset_id]["evaluations"][model_name]["ref_point"],
                 extreme_1=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_1"],
                 extreme_2=dataset_cache[dataset_id]["evaluations"][model_name]["extreme_2"],
-                param_dict=params[model_name],
+                param_dict=param_dict, 
             )
-            for dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id in tasks_to_run
+            for dataset_name, model_name, alg_name, alg_function, seed, task, dataset_id, param_dict in tasks_to_run
         )
     else:
         print("\nAll tasks completed")

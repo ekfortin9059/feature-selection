@@ -144,22 +144,23 @@ def crowded_comparison(a, b, rng):
 # =============================================================================
 def k_point_crossover(parent1, parent2, rng, k=None):
     '''
+    parents should by np arrays
     Performs single-point crossover at a random position k (or given position) between two parents.
     Returns two offspring individuals.
     '''
     if k is None:
-        k = rng.integers(1, len(parent1.chromosome))
+        k = rng.integers(1, len(parent1))
     
     offspring1 = np.concatenate([
-        parent1.chromosome[:k],
-        parent2.chromosome[k:]
+        parent1[:k],
+        parent2[k:]
     ])
 
     offspring2 = np.concatenate([
-        parent2.chromosome[:k],
-        parent1.chromosome[k:]
+        parent2[:k],
+        parent1[k:]
     ])
-    return Individual(offspring1), Individual(offspring2)
+    return offspring1, offspring2
 
 def uniform_crossover(parent1, parent2, crossover_prob, rng):
     ''' 
@@ -186,17 +187,14 @@ def uniform_crossover(parent1, parent2, crossover_prob, rng):
     return Individual(offspring1), Individual(offspring2)
         
 
-def mutation(individual, p_m, rng):
+def mutation(individual):
     '''
     Performs bit-wise mutation: each bit is independently flipped
     with probability p_m. 
     '''
-    chromosome = individual.chromosome.copy()
-    flip_mask = rng.random(len(chromosome)) < p_m
-    if flip_mask.any():
-        chromosome[flip_mask] = 1 - chromosome[flip_mask]
-        individual.chromosome = chromosome
-        individual.fitness = None
+    chromosome = individual.copy()
+    chromosome = 1 - chromosome
+    
 
 # =============================================================================
 # NSGA-II - Specific Functions
@@ -241,17 +239,6 @@ def generation_algorithm(parent_pop, offspring_pop, N):
 # =============================================================================
 # Selection Functions
 # =============================================================================
-def tournament_selection(population, rng):
-    '''
-    Standard binary tournament selection using crowded comparison.
-    '''
-    idx = rng.choice(len(population.population), 2, replace = False)
-    
-    a, b = population.population[idx[0]], population.population[idx[1]]
-
-    return crowded_comparison(a, b, rng)
-
-
 
 def special_tournament_select(population, tournament_param, 
                               exploration_param, N, rng):
@@ -318,27 +305,86 @@ def evolutionary_selection(population, crossover_prob, mutation_prob,
         
         if r < crossover_prob:
             idx = rng.choice(len(C), 2, replace = False)
-            c1, c2 = C.population[idx[0]], C.population[idx[1]] 
+            c1, c2 = C.population[idx[0]].chromosome.copy(), C.population[idx[1]].chromosome.copy() 
             o1, o2 = k_point_crossover(c1, c2, rng, k)    
             
             for o in [o1, o2]:
-                chrom = tuple(o.chromosome.copy())
+                chrom = tuple(o.copy())
                 if chrom not in seen and len(selected) < N_return:
-                    if np.sum(o.chromosome) > 0:        
+                    if np.sum(o) > 0:        
                         seen.add(chrom)
                         selected.append(chrom)
         else:
             c = C.population[rng.choice(len(C))]
-            mutant = Individual(c.chromosome.copy())
+            mutant = c.chromosome.copy()
             if r < crossover_prob + mutation_prob:
-                mutation(mutant, mutation_prob, rng)
+                mutation(mutant)
             
-            chrom = tuple(mutant.chromosome.copy())
+            chrom = tuple(mutant)
             if chrom not in seen and len(selected) < N_return:
-                if np.sum(mutant.chromosome) > 0:       
+                if np.sum(mutant) > 0:       
                     seen.add(chrom)
                     selected.append(chrom)
     
+    pop = Population()
+    pop.population = [Individual(np.array(c)) for c in selected]
+    
+    return pop
+
+def tournament_selection(population, rng):
+    '''
+    Standard binary tournament selection using crowded comparison.
+    '''
+    idx = rng.choice(len(population.population), 2, replace = False)
+    
+    a, b = population.population[idx[0]], population.population[idx[1]]
+
+    return crowded_comparison(a, b, rng)
+
+def evolutionary_selection2(population, crossover_prob, mutation_prob, N_return, rng):
+    '''
+    Improved Evolutionary Selection procedure to replace the original Algorithm 3 of FNSGA paper. 
+    
+    Crossover (k-point) applied if r1 < pc.
+    Mutation applied if r1 < pc AND r2 < pm (for each offspring of crossover)
+    Otherwise mutate c1 and c2
+    
+    Returns a Population of N_return unique, non-empty offspring.
+    '''
+
+    selected = []
+    seen = set()
+    
+    while len(selected) < N_return:
+        p1 = tournament_selection(population, rng).chromosome.copy()
+        p2 = tournament_selection(population, rng).chromosome.copy()
+        
+        r1 = rng.uniform(0,1)
+        if r1 < crossover_prob:
+            offspring = list(k_point_crossover(p1, p2, rng))
+            
+            for o in range(2):
+                r2 = rng.uniform(0,1)
+                if r2 < mutation_prob:
+                    mutation(offspring[o])
+            
+            for o in offspring:
+                chrom = tuple(o.copy())
+                if chrom not in seen and len(selected) < N_return:
+                    if np.sum(o) > 0:        
+                        seen.add(chrom)
+                        selected.append(chrom)
+        
+        else:
+            mutation(p1)
+            mutation(p2)
+            for o in [p1, p2]:
+                chrom = tuple(o.copy())
+                if chrom not in seen and len(selected) < N_return:
+                    if np.sum(o) > 0:        
+                        seen.add(chrom)
+                        selected.append(chrom)
+       
     pop = Population()
     pop.population = [Individual(np.array(c)) for c in selected]
     

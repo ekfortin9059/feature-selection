@@ -37,16 +37,16 @@ def my_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     rng = np.random.default_rng(seed)
     
     # Extract parameters
-    N = params["population_size"]
-    T = params["generations"]
+    N = int(params["population_size"])
+    T = int(params["generations"])
+
     p_c = params["crossover_prob"]
     p_m = params["mutation_prob"]
-    tournament_param = params["tournament_param"]
-    exploration_param = params["exploration_param"]
     seeding_prop = params["seeding_prop"]
     ones_prop = params["ones_prop"]
-    ls_param = params["ls_param"]
-     
+    ls_start = params["ls_start"]
+    ls_end = params["ls_end"]
+    
     # feature importances from ML model
     feat_importances = model_evaluator.feature_importances(data)
     
@@ -59,9 +59,8 @@ def my_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     for front in fronts:
         operators.crowding_distance(front)
      
-    # amount of individuals for offspring coming from LS and ES
-    N_local = round(N * ls_param)
-    N_evo = N - N_local
+    # local search geometric heating rate
+    growth_rate = (ls_end / ls_start) ** (1 / (T - 1)) if T > 1 else 1.0
     
     # history for plotting iterations
     last_fig = None
@@ -81,9 +80,14 @@ def my_FNSGA(data, model_evaluator, params, seed=None, plot=False):
         nd_set = Population()
         nd_set.population = [ind for ind in pop_t.population if ind.rank == 1]
         
+        ls_t = min(ls_start * (growth_rate ** t), ls_end)
+        
+        # amount of individuals for offspring coming from LS and ES
+        N_local = round(N * ls_t)
+        N_evo = N - N_local
         
         # Evolutionary Selection
-        evo_pop = operators.evolutionary_selection(pop_t, p_c, p_m, tournament_param, exploration_param, N, N_evo, rng)
+        evo_pop = operators.evolutionary_selection2(pop_t, p_c, p_m, N_evo, rng)
         evo_pop.evaluate(data, model_evaluator)
         
             
@@ -97,7 +101,6 @@ def my_FNSGA(data, model_evaluator, params, seed=None, plot=False):
         ls_pop = Population()
         ls_pop.population = [*add.population, *remove.population, *addremove.population, *merge.population] 
         ls_pop.evaluate(data, model_evaluator)
-
             
         if plot:
             def _get_fitness(pop):
@@ -166,8 +169,8 @@ def replica_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     '''
     rng = np.random.default_rng(seed)
 
-    N = params["population_size"]
-    T = params["generations"]
+    N = int(params["population_size"])
+    T = int(params["generations"])
 
     p_c = params["crossover_prob"]
     p_m = params["mutation_prob"]
@@ -179,8 +182,8 @@ def replica_FNSGA(data, model_evaluator, params, seed=None, plot=False):
     ones_prop = params["ones_prop"]
     ls_param = params["ls_param"]
     
-    L = params["L"]
-    k = params["k"]
+    L = int(params["L"])
+    k = int(params["k"])
     
     
     # get feature importances based on model evaluation (using selectfrommodel as in paper)
@@ -288,13 +291,24 @@ def replica_FNSGA(data, model_evaluator, params, seed=None, plot=False):
 # 3. Pymoo algorithm setup
 # =============================================================================
 from pymoo.core.problem import ElementwiseProblem
-from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.algorithms.moo.sms import SMSEMOA
-from pymoo.algorithms.moo.spea2 import SPEA2
 from pymoo.optimize import minimize
+from pymoo.util.ref_dirs import get_reference_directions
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.algorithms.moo.moead import MOEAD
+from pymoo.algorithms.moo.sms import SMSEMOA
+from pymoo.algorithms.moo.nsde import NSDE
+from pymoo.algorithms.moo.dnsga2 import DNSGA2
+from pymoo.algorithms.moo.kgb import KGB
+from pymoo.algorithms.moo.spea2 import SPEA2
+from pymoo.algorithms.moo.gde3 import GDE3
 from pymoo.operators.crossover.ux import UniformCrossover
 from pymoo.operators.mutation.bitflip import BitflipMutation
 from pymoo.operators.sampling.rnd import BinaryRandomSampling
+
+
+
+#from pymoo.algorithms.moo.age2 import AGEMOEA2
+
 
 
 class FeatureSelectionProblem(ElementwiseProblem):
@@ -346,7 +360,7 @@ def make_pymoo_runner(alg_factory):
 
 def make_nsga2(params, seed):
     return NSGA2(
-        pop_size=params['population_size'],
+        pop_size=int(params['population_size']),
         sampling=BinaryRandomSampling(),
         crossover=UniformCrossover(prob=params['crossover_prob']),
         mutation=BitflipMutation(prob=params['mutation_prob']),
@@ -355,7 +369,7 @@ def make_nsga2(params, seed):
 
 def make_spea2(params, seed):
     return SPEA2(
-        pop_size=params['population_size'],
+        pop_size=int(params['population_size']),
         sampling=BinaryRandomSampling(),
         crossover=UniformCrossover(prob=params['crossover_prob']),
         mutation=BitflipMutation(prob=params['mutation_prob']),
@@ -364,11 +378,62 @@ def make_spea2(params, seed):
 
 def make_smsemoa(params, seed):
     return SMSEMOA(
-        pop_size=params['population_size'],
+        pop_size=int(params['population_size']),
         sampling=BinaryRandomSampling(),
         crossover=UniformCrossover(prob=params['crossover_prob']),
         mutation=BitflipMutation(prob=params['mutation_prob']),
         eliminate_duplicates=True
     )
+
+def make_moead(params, seed):
+    return MOEAD(
+        get_reference_directions("uniform", 2, n_partitions=params["population_size"]),
+        pop_size=int(params['population_size']),
+        sampling=BinaryRandomSampling(),
+        crossover=UniformCrossover(prob=params['crossover_prob']),
+        mutation=BitflipMutation(prob=params['mutation_prob']),
+        eliminate_duplicates=True
+    )
+
+def make_nsde(params, seed):
+    return NSDE(
+        pop_size=int(params['population_size']),
+        sampling=BinaryRandomSampling(),
+        crossover=UniformCrossover(prob=params['crossover_prob']),
+        mutation=BitflipMutation(prob=params['mutation_prob']),
+        eliminate_duplicates=True
+    )
+
+def make_kgb(params, seed):
+    return KGB(
+        pop_size=int(params['population_size']),
+        sampling=BinaryRandomSampling(),
+        crossover=UniformCrossover(prob=params['crossover_prob']),
+        mutation=BitflipMutation(prob=params['mutation_prob']),
+        eliminate_duplicates=True
+    )
+
+def make_dnsga2(params, seed):
+    return DNSGA2(
+        pop_size=int(params['population_size']),
+        sampling=BinaryRandomSampling(),
+        crossover=UniformCrossover(prob=params['crossover_prob']),
+        mutation=BitflipMutation(prob=params['mutation_prob']),
+        eliminate_duplicates=True
+    )
+def make_gde3(params, seed):
+    return GDE3(
+        pop_size=int(params['population_size']),
+        sampling=BinaryRandomSampling(),
+        crossover=UniformCrossover(prob=params['crossover_prob']),
+        mutation=BitflipMutation(prob=params['mutation_prob']),
+        eliminate_duplicates=True
+    )
+
+# def make_agemoea2(params, seed):
+#     return AGEMOEA2(
+#         pop_size=params['population_size'],
+#         eliminate_duplicates=True
+#     )
 
 

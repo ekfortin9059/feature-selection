@@ -30,39 +30,39 @@ from scipy.stats import friedmanchisquare
  
 from algorithms import my_FNSGA, replica_FNSGA
 from data import Data
-from parameters import *
+from parameters import replica_params, tuned_parameters
 from evaluator import ModelEvaluator
 import metrics
 
 #%%
 # seed and data
 
-seed = 3444
-test_data = Data(183)
+seed = 1234
+test_data = Data(464)
 
 # model evaluator (linear regression)
 evaluator = ModelEvaluator(LinearRegression(), r2_score)
 
 # model evaluator (logistic regression)
-# evaluator = evaluator = ModelEvaluator(Pipeline([('scaler', StandardScaler()),
+# evaluator = ModelEvaluator(Pipeline([('scaler', StandardScaler()),
 #               ('model', LogisticRegression(max_iter=1000))]),
 #     accuracy_score
 # )
 
-ref_point = np.array([0.05, test_data.n + 1])
+ref_point = np.array([0.0, test_data.n])
 ext_1, ext_2 = metrics.compute_pareto_extremes(test_data, evaluator)
 
 #%% ===========================================================================
 # 1. Single Run of My FNSGA (gives plot of pareto front)
 # =============================================================================
-evaluator = ModelEvaluator(
-    Pipeline([('scaler', StandardScaler()),
-          ('model', LogisticRegression(max_iter=1000))]),
-    accuracy_score)
-ext_1, ext_2 = metrics.compute_pareto_extremes(test_data, evaluator)
+# evaluator = ModelEvaluator(
+#     Pipeline([('scaler', StandardScaler()),
+#           ('model', LogisticRegression(max_iter=1000))]),
+#     accuracy_score)
+# ext_1, ext_2 = metrics.compute_pareto_extremes(test_data, evaluator)
 
 start = time.time()
-result, fig, ax = my_FNSGA(test_data, evaluator, params = {**COMMON, **LOGREG_PARAMS}, seed=seed, plot=True)
+result, fig, ax = my_FNSGA(test_data, evaluator, params = tuned_parameters.loc["LinReg"], seed=seed, plot=True)
 print("Single-Run Results: My FNSGA")
 print(f"Seed: {seed}")
 print(f"Runtime: {time.time() - start:.1f}s")
@@ -86,15 +86,13 @@ plt.show()
 #%% ===========================================================================
 # 2. Single Run of Tom's FNSGA
 # =============================================================================
-evaluator = ModelEvaluator(
-    Pipeline([('scaler', StandardScaler()),
-          ('model', LogisticRegression(max_iter=1000))]),
-    accuracy_score)
-
-replica_params = {**COMMON, **LOGREG_PARAMS}
+# evaluator = ModelEvaluator(
+#     Pipeline([('scaler', StandardScaler()),
+#           ('model', LogisticRegression(max_iter=1000))]),
+#     accuracy_score)
  
 start = time.time()
-result, fig, ax = replica_FNSGA(test_data, evaluator, replica_params, seed=seed, plot=True)
+result, fig, ax = replica_FNSGA(test_data, evaluator, replica_params.loc["LinReg"], seed=seed, plot=True)
 print("Single Run Results: Tom's FNSGA")
 print(f"Seed: {seed}")
 print(f"Runtime: {time.time() - start:.1f}s")
@@ -122,27 +120,30 @@ plt.show()
 # =============================================================================
 from algorithms import *
 
-seed_array = np.random.choice(10000, size = 1, replace = False)
-extreme_1, extreme_2 = metrics.compute_pareto_extremes(test_data, evaluator)
+seed_array = np.random.choice(10000, size = 5, replace = False)
 
 algorithms = {"replica": replica_FNSGA, 
               "my": my_FNSGA,
               'nsga2': make_pymoo_runner(make_nsga2),
-              'spea2': make_pymoo_runner(make_spea2),
-              'smsemoa':  make_pymoo_runner(make_smsemoa)}
+              'smsemoa':  make_pymoo_runner(make_smsemoa),
+              'dnsga2': make_pymoo_runner(make_dnsga2)}
 
-params = {"replica": {**COMMON, **REPLICA}, 
-          "my": COMMON,
-          'nsga2': COMMON,
-          'spea2': COMMON,
-          'smsemoa': COMMON
+params = {"replica": replica_params.loc["LinReg"], 
+          "my": tuned_parameters.loc["LinReg"],
+          'nsga2': tuned_parameters.loc["LinReg"],
+          'smsemoa': tuned_parameters.loc["LinReg"],
+          'dnsga2': tuned_parameters.loc["LinReg"]
           }
 
-results = metrics.run_metrics(seed_array, test_data, evaluator,
-                      ref_point, extreme_1, extreme_2, 
-                      my_FNSGA, {**COMMON, **LINREG_PARAMS})
+results = []
+for alg_name, alg in algorithms.items():
+    results.append( metrics.run_metrics(seed_array, test_data, evaluator,
+                          ref_point, ext_1, ext_2, 
+                          alg, params[alg_name]))
+    results[-1]["algorithm"] = alg_name
+    
 
-df = pd.DataFrame(results)
+df = pd.concat(results)
 
 summary = (df.groupby('algorithm')
              .agg({
@@ -151,20 +152,25 @@ summary = (df.groupby('algorithm')
                  'spread':      ['mean', 'std'],
                  'pf_size':     ['mean', 'std'],
                  'time':        ['mean', 'std'],
+                 'f1_max':      ['mean', 'std'],
+                 'f2_max':      ['mean', 'std'],
+                 'f1_min':      ['mean', 'std'],
+                 'f2_min':      ['mean', 'std'],
+                
              })
              .round(4))
-print(summary)
+summary_df = pd.DataFrame(summary)
 
-# --- Friedman test ---
-print("\nFriedman test")
-for metric in ['hypervolume', 'spread', 'spacing', 'time']:
-    groups = [
-        df[df['algorithm'] == alg][metric].values
-        for alg in algorithms
-    ]
-    stat, p = friedmanchisquare(*groups)
-    print(f"  {metric:12s}: stat={stat:.4f}, p={p:.4f}")
- 
+# # --- Friedman test ---
+# print("\nFriedman test")
+# for metric in ['hypervolume', 'spread', 'spacing', 'time']:
+#     groups = [
+#         df[df['algorithm'] == alg][metric].values
+#         for alg in algorithms
+#     ]
+#     stat, p = friedmanchisquare(*groups)
+#     print(f"  {metric:12s}: stat={stat:.4f}, p={p:.4f}")
+#%% 
 #%%
 
 with open('results.pkl', 'wb') as f:

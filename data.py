@@ -20,14 +20,16 @@ class Data:
             data_obj = fetch_ucirepo(id=_id)
             X = data_obj.data.features.dropna(axis=1)
             X = X.select_dtypes(exclude = ['object'])
+            X = X.loc[:,~X.columns.duplicated()].copy()
+
             y = data_obj.data.targets
         
         valid_indices = y.dropna().index
-
+        
         self.X = X.loc[valid_indices]
         self.y = y.loc[valid_indices]
         self.n = len(self.X.columns)
         self.X_train, self.X_test, self.y_train, self.y_test = \
             train_test_split(self.X, self.y, test_size=0.2, random_state=42)
             
-            
+        

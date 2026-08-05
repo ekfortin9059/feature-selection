@@ -1,0 +1,5 @@
+,population_size,generations,tournament_param,crossover_prob,mutation_prob,exploration_param,ls_param,seeding_prop,ones_prop,L,k
+SVC,100,20,0.72,0.68,0.01,0.41,0.61,0.02,0.04,11,2
+DT,100,20,0.63,0.66,0.02,0.53,0.81,0.02,0.05,8,3
+LogReg,100,20,0.61,0.7,0.01,0.55,0.71,0.02,0.04,11,2
+LinReg,100,20,0.59,0.78,0.02,0.63,0.43,0.03,0.03,7,2

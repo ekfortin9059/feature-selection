@@ -25,7 +25,7 @@ class Population:
         
     def initialise(self, n_features, N, feat_importances, seeding_prop, ones_prop ,rng):
         n_o = round(N * ones_prop)
-        n_s = round(N * seeding_prop)
+        n_s = min(round(N * seeding_prop), n_features)    
         
         # use np.abs: strong negative coefs are just as important 
         importances_idxs = np.argsort(np.abs(feat_importances))[::-1] 

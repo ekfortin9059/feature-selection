@@ -35,27 +35,13 @@ print(df_clean.groupby(['dataset','model','algorithm']).size().reset_index(name=
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+metrics = ["hypervolume", "spread", "spacing", "pf_size", "time"]
+datasets = pd.read_excel('datasets.xlsx')
+names = datasets["Name"]
 
-sns.boxplot(data=df_clean, x="task", y="hypervolume", hue="algorithm")
-plt.show()
+for n in names:
+    for m in metrics:
+        ax = sns.boxplot(data=df_clean[df_clean["dataset"]== n], x="model", y= m,  hue="algorithm")
+        ax.set_title(f"{n} Dataset")
+        plt.show()
 
-sns.boxplot(data=df_clean, x="task", y="spread", hue="algorithm")
-plt.show()
-
-sns.boxplot(data=df_clean,x="task",y="spacing",hue="algorithm")
-plt.show()
-
-sns.boxplot(data=df_clean,x="task",y="spacing",hue="algorithm",showfliers=False)
-plt.show()
-
-sns.boxplot(data=df_clean,x="task",y="time",hue="algorithm")
-plt.show()
-
-sns.boxplot(data=df_clean,x="task",y="time",hue="algorithm",showfliers=False)
-plt.show()
-
-sns.boxplot(data=df_clean,x="task",y="pf_size",hue="algorithm")
-plt.show()
-
-
-spambase_ds = results[results['dataset'] == "spambase"]

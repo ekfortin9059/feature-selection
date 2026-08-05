@@ -6,55 +6,18 @@ Created on Fri Jul 17 12:48:31 2026
 @author: erinfortin
 """
 
-COMMON = {
-    "population_size": 100,
-    "generations": 20,
-    }
+import pandas as pd
 
-SVC_PARAMS = {
-    "tournament_param": 0.72,
-    "crossover_prob": 0.68,
-    "mutation_prob": 0.01,
-    "exploration_param": 0.41,
-    "ls_param": 0.61,
-    "seeding_prop":0.02 ,
-    "ones_prop": 0.04,
-    "L": 11,
-    "k": 2
-}
+my_params_df = pd.read_csv('tuned_parameters.csv', index_col=0)
 
-DT_PARAMS = {
-    "tournament_param": 0.63,
-    "crossover_prob": 0.68,
-    "mutation_prob": 0.02,
-    "exploration_param": 0.53,
-    "ls_param": 0.81,
-    "seeding_prop":0.02 ,
-    "ones_prop": 0.05,
-    "L": 8,
-    "k": 3
-}
+replica_params_df = pd.read_csv('replica_parameters.csv', index_col=0)
 
-LOGREG_PARAMS = {
-    "tournament_param": 0.61,
-    "crossover_prob": 0.7,
-    "mutation_prob": 0.01,
-    "exploration_param": 0.55,
-    "ls_param": 0.71,
-    "seeding_prop":0.02 ,
-    "ones_prop": 0.04,
-    "L": 11,
-    "k": 2
-}
+MY_PARAMS = my_params_df.to_dict(orient='index')
+REPLICA_PARAMS = replica_params_df.to_dict(orient='index')
 
-LINREG_PARAMS = {
-    "tournament_param": 0.59,
-    "crossover_prob": 0.70,
-    "mutation_prob": 0.02,
-    "exploration_param": 0.63,
-    "ls_param": 0.43,
-    "seeding_prop":0.03 ,
-    "ones_prop": 0.03,
-    "L": 7,
-    "k": 2
-}
+def get_algorithm_params(alg_name, model_name):
+    if alg_name == 'replica':
+        return REPLICA_PARAMS[model_name]
+    else:
+        # Use tuned parameters for my_FNSGA and all pymoo benchmark algorithms
+        return MY_PARAMS[model_name]

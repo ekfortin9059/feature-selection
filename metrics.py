@@ -73,8 +73,7 @@ def run_metrics(seeds, data, evaluator,ref_point,
     results = []
     for seed in seeds:
         seed_idx = np.where(seeds==seed)[0][0]+1
-        if seed_idx in range(1, len(seeds), 4): 
-            print(f"    Seed {seed_idx}/{len(seeds)}") 
+        print(f"    Seed {seed_idx}/{len(seeds)}") 
         start = time.time()
         nd_front, _, _ = algorithm(
                             data, 
